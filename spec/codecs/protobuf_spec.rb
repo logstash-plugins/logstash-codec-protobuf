@@ -8,7 +8,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#decode" do
 
-    let(:plugin) { LogStash::Codecs::Protobuf.new("debug" => true, "class_name" => "Animal::Unicorn", "include_path" => ['spec/helpers/unicorn.pb.rb'])  }
+    let(:plugin) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Unicorn", "include_path" => ['spec/helpers/unicorn.pb.rb'])  }
     before do
         plugin.register
     end
