@@ -17,15 +17,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   
   def register
-    @include_path.each{|path| require_pb_path(path) }
-    @obj = create_object_from_name(@class_name)
+    include_path.each { |path| require_pb_path(path) }
+    @obj = create_object_from_name(class_name)
   end
 
   def decode(data)
     decoded = @obj.parse(data.to_s)
     results = extract_vars(decoded)
-    event = LogStash::Event.new(results)  
-    yield event
+    yield LogStash::Event.new(results) if block_given?
   end # def decode
 
   def encode(event)
