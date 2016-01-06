@@ -17,12 +17,16 @@ describe LogStash::Codecs::Protobuf do
     
       data = {:colour => 'rainbow', :horn_length => 18, :last_seen => 1420081471}
       unicorn = Animal::Unicorn.new(data)
-          
+
+         
       plugin.decode(unicorn.serialize_to_string) do |event|
+
+        puts event.inspect
+
         insist { event.is_a? LogStash::Event }
-        insist { event["colour"] } == data[:colour]
-        insist { event["horn_length"] } == data[:horn_length]
-        insist { event["last_seen"] } == data[:last_seen]
+        insist { event[:colour]  == data[:colour] }
+        insist { event[:horn_length]  == data[:horn_length] }
+        insist { event[:last_seen]  == data[:last_seen] }
       end
     end
   end
