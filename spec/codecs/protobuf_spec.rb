@@ -21,7 +21,7 @@ describe LogStash::Codecs::Protobuf do
          
       plugin.decode(unicorn.serialize_to_string) do |event|
 
-        puts event.inspect
+        # puts event.inspect
 
         insist { event.is_a? LogStash::Event }
         insist { event[:colour]  == data[:colour] }
