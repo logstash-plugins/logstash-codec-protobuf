@@ -60,6 +60,6 @@ class_name		(required): the name of the protobuf class that is to be decoded.
 If you include more than one definition class, consider the order of inclusion. This is especially relevant if you include whole directories. A definition might refer to another definition that is not loaded yet. In this case, please specify the files in the include_path variable in reverse order of reference. See 'Example with referenced definitions' above.
 
 
-# Roapmap
+# Roadmap
 
 Currently the plugin supports the decode functionality only. Maybe we'll add the encoding part also.
