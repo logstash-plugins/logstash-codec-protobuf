@@ -19,6 +19,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def register
     include_path.each { |path| require_pb_path(path) }
     @obj = create_object_from_name(class_name)
+    @logger.debug("Protobuf files successfully loaded.")
   end
 
   def decode(data)
@@ -38,6 +39,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   private
   def create_object_from_name(name)
     begin
+      @logger.debug("Creating instance of " + name)
       return name.split('::').inject(Object) { |n,c| n.const_get c }
      end
   end
@@ -47,9 +49,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     f = dir_or_file.end_with? ('.rb')
     begin
       if f
+        @logger.debug("Including protobuf file: " + dir_or_file)
         require dir_or_file
       else 
-        Dir[ dir_or_file + '/*.rb'].each { |file| 
+        Dir[ dir_or_file + '/*.rb'].each { |file|
+          @logger.debug("Including protobuf path: " + dir_or_file + "/" + file)
           require file 
         }
       end
