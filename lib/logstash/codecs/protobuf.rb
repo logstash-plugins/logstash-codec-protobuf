@@ -12,8 +12,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Name of the class to decode
   config :class_name, :validate => :string, :required => true
 
-  # remove 'set_fields' field
-  config :remove_set_fields, :validate => :boolean, :default => true # TODO add documentation
+  # TODO add documentation
+  config :remove_set_fields, :validate => :boolean, :default => true 
+
+  # TODO add documentation
+  config :keys_as_symbols, :validate => :boolean, :default => false
 
   
   def register
@@ -62,22 +65,23 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def extract_vars(decoded_object)
-   return {} if decoded_object.nil?
-   results = {}
-   decoded_object.instance_variables.each do |key|
-     formatted_key = key.to_s.gsub('@', '').to_sym
-     next if remove_set_fields && formatted_key == :set_fields
-     instance_var = decoded_object.instance_variable_get(key)
+    return {} if decoded_object.nil?
+    results = {}
+    decoded_object.instance_variables.each do |key|
+      formatted_key = key.to_s.gsub('@', '')
+      formatted_key = formatted_key.to_sym if @keys_as_symbols
+      next if remove_set_fields && formatted_key == :set_fields
+      instance_var = decoded_object.instance_variable_get(key)
 
-     results[formatted_key] =
-         if instance_var.is_a?(::ProtocolBuffers::Message)
-           extract_vars(instance_var)
-         elsif instance_var.is_a?(Enumerable)
-           instance_var.entries
-         else
-           instance_var
-         end
-   end
+      results[formatted_key] =
+        if instance_var.is_a?(::ProtocolBuffers::Message)
+          extract_vars(instance_var)
+        elsif instance_var.is_a?(Enumerable)
+          instance_var.entries
+        else
+          instance_var
+        end
+     end
    results
   end
 
