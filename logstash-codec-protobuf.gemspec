@@ -5,7 +5,8 @@ Gem::Specification.new do |s|
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "This codec may be used to decode (via inputs) and encode (via outputs) protobuf messages"
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
-  s.authors         = ["trivago"]
+  s.authors         = ["Inga Feick"]
+  s.email           = 'inga.feick@trivago.com'
   s.require_paths   = ["lib"]
 
   # Files

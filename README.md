@@ -2,15 +2,15 @@
 
 This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to parse protobuf messages.
 
-# Prerequisites
+# Prerequisites and Installation
  
 * prepare your ruby versions of the protobuf definitions, for example using the ruby-protoc compiler from https://github.com/codekitchen/ruby-protocol-buffers
-* download the logstash-codec-protobuf-$VERSION.gem to your computer.
+* download the [gem file](https://rubygems.org/gems/logstash-codec-protobuf) to your computer.
 * Install the plugin. From within your logstash directory, do
 	bin/plugin install /path/to/logstash-codec-protobuf-$VERSION.gem
 * use the codec in your logstash config file. See details below.
 
-# Usage
+## Usage
 
 Use this as a codec in any logstash input. Just provide the name of the class that your incoming objects will be encoded in, and specify the path to the compiled definition.
 Here's an example for a kafka input:
@@ -46,20 +46,20 @@ Set the class name to the parent class:
 	
 	class_name => "Foods::Dairy::Cheese"
 
-# Configuration
+## Configuration
 
 include_path	(required): an array of strings with filenames or directory names where logstash can find your protobuf definitions. Please provide absolute paths. For directories it will only try to import files ending on .rb
 
 class_name		(required): the name of the protobuf class that is to be decoded.
 
 
-# Troubleshooting
+## Troubleshooting
 
-## "uninitialized constant SOME_CLASS_NAME"
+### "uninitialized constant SOME_CLASS_NAME"
 
 If you include more than one definition class, consider the order of inclusion. This is especially relevant if you include whole directories. A definition might refer to another definition that is not loaded yet. In this case, please specify the files in the include_path variable in reverse order of reference. See 'Example with referenced definitions' above.
 
 
-# Roadmap
+# #Roadmap
 
 Currently the plugin supports the decode functionality only. Maybe we'll add the encoding part also.
