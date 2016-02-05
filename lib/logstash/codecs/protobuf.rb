@@ -63,11 +63,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     results = {}
     decoded_object.instance_variables.each do |key|
       formatted_key = key.to_s.gsub('@', '')
-      next if formatted_key == :set_fields # TODO this does not work on all levels. Nested objects still have this attribute. And symbol keys :/
+      next if (formatted_key == :set_fields || formatted_key == "set_fields")
       instance_var = decoded_object.instance_variable_get(key)
 
       results[formatted_key] =
-        if instance_var.is_a?(::ProtocolBuffers::Message) # maybe this check doesnt work and that is why the nested objects are not "corrected"?
+        if instance_var.is_a?(::ProtocolBuffers::Message)
           extract_vars(instance_var)
         elsif instance_var.is_a?(Enumerable)
           instance_var.entries
