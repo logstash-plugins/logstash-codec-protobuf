@@ -26,7 +26,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def decode
 
   def encode(event)
-    raise 'Encoder function not implemented yet for protobuf codec. Sorry!'
+    raise 'Encodeør function not implemented yet for protobuf codec. Sorry!'
     # @on_event.call(event, event.to_s)
     # TODO integrate
   end # def encode
@@ -67,10 +67,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       instance_var = decoded_object.instance_variable_get(key)
 
       results[formatted_key] =
-        if instance_var.is_a?(::ProtocolBuffers::Message)
+        if instance_var.is_a?(::ProtocolBuffers::Message) 
           extract_vars(instance_var)
-        elsif instance_var.is_a?(Enumerable)
-          instance_var.entries
+        elsif instance_var.is_a?(::Hash)
+          instance_var.inject([]) { |h, (k, v)| h[k.to_s] = extract_vars(v); h }
+        elsif instance_var.is_a?(Enumerable) # is a list
+          instance_var.inject([]) { |h, v| h.push(extract_vars(v)); h }
         else
           instance_var
         end
