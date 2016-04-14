@@ -42,7 +42,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def create_object_from_name(name)
     begin
       @logger.debug("Creating instance of " + name)
-      greturn name.split('::').inject(Object) { |n,c| n.const_get c }
+      return name.split('::').inject(Object) { |n,c| n.const_get c }
      end
   end
 
