@@ -32,7 +32,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def generate_protobuf(event)
-    msg = @obj.new(event.to_hash)
+    fields = event.to_hash
+    fields.delete("@version") # TODO just for testing to see if this works in general
+    fields.delete("@timestamp") # TODO just for testing to see if this works in general
+    print fields # TODO remove
+    msg = @obj.new(fields)
     msg.serialize_to_string
   end # def generate_protobuf
 
