@@ -36,7 +36,7 @@ describe LogStash::Codecs::Protobuf do
     end
 
     it "should return protobuf encoded data from an event" do
-      event_fields = {"colour" => 'rainbow', "horn_length" => 18, "last_seen" => 1420081471}
+      event_fields = {"colour" => 'pink', "horn_length" => 12, "last_seen" => 1410081999}
       event = LogStash::Event.new(event_fields)        
       plugin.encode(event) do |output|
         
