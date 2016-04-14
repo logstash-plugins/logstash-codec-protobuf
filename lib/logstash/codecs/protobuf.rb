@@ -26,10 +26,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def decode
 
   def encode(event)
-    raise 'Encodeør function not implemented yet for protobuf codec. Sorry!'
-    # @on_event.call(event, event.to_s)
-    # TODO integrate
+    protobytes = generate_protobuf(event)
+    @on_event.call(event, protobytes)
   end # def encode
+
+  private
+  def generate_protobuf(event)
+    msg = @obj.new(event.to_hash)
+    msg.serialize_to_string
+  end # def generate_protobuf
 
 
 
@@ -37,7 +42,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def create_object_from_name(name)
     begin
       @logger.debug("Creating instance of " + name)
-      return name.split('::').inject(Object) { |n,c| n.const_get c }
+      greturn name.split('::').inject(Object) { |n,c| n.const_get c }
      end
   end
 
