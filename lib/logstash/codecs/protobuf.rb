@@ -33,25 +33,29 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   private
   def generate_protobuf(event)
     fields = prepare_event_for_protobuf(event)
-    print fields # TODO remove
     begin
-      msg = @obj.new(fields) # TODO for some reason this is nil.
+      msg = @obj.new(fields)
       msg.serialize_to_string
     rescue NoMethodError
-      @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition.")
+      @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
     end
   end # def generate_protobuf
 
-  private
+
   def prepare_event_for_protobuf(event)
-    Hash[event.to_hash.map{|(k,v)| [remove_atchar(k.to_s), (v.is_a?(Fixnum) ? v : v.to_s)] }] 
-    # TODO make this work. Timestamp and other objects should be casted to string, numerics not, also not booleans. maybe check for object instead
-    # take that from decoder maybe. Also think about recursion.
+    # 1) remove @ signs from keys 
+    # 2) convert timestamps and other objects to strings
+    Hash[event.to_hash.map{|(k,v)| [remove_atchar(k.to_s), (convert_to_string?(v) ? v.to_s : v)] }] 
+    # TODO think about recursion for this. Maybe have a look at the way that the decoder traverses over the object hierarchy and copy that.
   end #prepare_event_for_protobuf
 
-  private 
-  def remove_atchar(key) # necessary for @timestamp fields and the likes.
-    return key.dup.gsub(/@/,'')
+  def convert_to_string?(v)
+    !(v.is_a?(Fixnum) || [true, false].include?(v))
+  end
+
+   
+  def remove_atchar(key) # necessary for @timestamp fields and the likes. #TODO check again if this is really necessary once everything is finished and running stable.
+    key.dup.gsub(/@/,'')
   end
 
   private
