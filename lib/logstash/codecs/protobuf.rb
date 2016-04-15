@@ -54,7 +54,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
    
-  def remove_atchar(key) # necessary for @timestamp fields and the likes. #TODO check again if this is really necessary once everything is finished and running stable.
+  def remove_atchar(key) # necessary for @timestamp fields and the likes. Protobuf definition doesn't handle @ in field names well.
     key.dup.gsub(/@/,'')
   end
 

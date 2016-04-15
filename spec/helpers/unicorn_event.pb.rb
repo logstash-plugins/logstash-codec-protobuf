@@ -18,7 +18,7 @@ module Animal
     optional :string, :path, 6
     optional :string, :version, 7
     optional :bool, :has_wings, 8
-    optional :bool, :@symbolnametest, 9
+    
   end
 
 end
