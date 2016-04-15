@@ -32,15 +32,27 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def generate_protobuf(event)
-    fields = event.to_hash
-    fields.delete("@version") # TODO just for testing to see if this works in general
-    fields.delete("@timestamp") # TODO just for testing to see if this works in general
+    fields = prepare_event_for_protobuf(event)
     print fields # TODO remove
-    msg = @obj.new(fields)
-    msg.serialize_to_string
+    begin
+      msg = @obj.new(fields) # TODO for some reason this is nil.
+      msg.serialize_to_string
+    rescue NoMethodError
+      @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition.")
+    end
   end # def generate_protobuf
 
+  private
+  def prepare_event_for_protobuf(event)
+    Hash[event.to_hash.map{|(k,v)| [remove_atchar(k.to_s), (v.is_a?(Fixnum) ? v : v.to_s)] }] 
+    # TODO make this work. Timestamp and other objects should be casted to string, numerics not, also not booleans. maybe check for object instead
+    # take that from decoder maybe. Also think about recursion.
+  end #prepare_event_for_protobuf
 
+  private 
+  def remove_atchar(key) # necessary for @timestamp fields and the likes.
+    return key.dup.gsub(/@/,'')
+  end
 
   private
   def create_object_from_name(name)
