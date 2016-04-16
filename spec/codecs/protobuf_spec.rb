@@ -10,7 +10,7 @@ describe LogStash::Codecs::Protobuf do
   context "#decode" do
 
     #### Test case 1: Decode simple protobuf bytes for unicorn ####################################################################################################################
-
+=begin deactivated for better testing of #4, TODO reactivate
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Unicorn", "include_path" => ['spec/helpers/unicorn.pb.rb'])  }
     before do
         plugin_unicorn.register      
@@ -32,7 +32,7 @@ describe LogStash::Codecs::Protobuf do
 
 
 
-
+=end
 
     #### Test case 2: Decode complex protobuf bytes for human #####################################################################################################################
 
@@ -74,6 +74,7 @@ describe LogStash::Codecs::Protobuf do
 
 
     #### Test case 3: Encode simple protobuf bytes for unicorn ####################################################################################################################
+=begin deactivated for better testing of #4, TODO reactivate
 
   context "#encode" do
     subject do
@@ -97,7 +98,7 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
-
+=end
 
 
 
@@ -109,7 +110,7 @@ describe LogStash::Codecs::Protobuf do
       next LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => ['spec/helpers/human.pb.rb']) 
     end
 
-    event = LogStash::Event.new("first_name" => "Jimmy", "middle_names" => ["Bob","Hans"], "last_name" => "Doe" \
+    event = LogStash::Event.new("first_name" => "Jimmy", "middle_names" => ["Bob", "James"], "last_name" => "Doe" \
       , "mother" => {"first_name" => "Jane", "middle_names" => ["Elizabeth"], "last_name" => "Doe" , "age" => 83, "vegetarian"=> false} \
       , "father" => {"first_name" => "John", "last_name" => "Doe", "@email" => "character_replacement_test@nothing" })    
 
@@ -120,8 +121,11 @@ describe LogStash::Codecs::Protobuf do
         insist { data.is_a? String }
         puts "Hello 4" # todo remove
         puts data
+        puts "Hello 5" # todo remove
+        
         jimmy = Animal::Human.parse(data) 
-    
+        puts "Hello 6" # todo remove
+        
         expect(jimmy.first_name ).to eq(event["first_name"] )
         expect(jimmy.middle_names ).to eq(event["middle_names"] )
         expect(jimmy.last_name ).to eq(event["last_name"] )
