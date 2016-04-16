@@ -9,8 +9,8 @@ describe LogStash::Codecs::Protobuf do
 
   context "#decode" do
 
+
     #### Test case 1: Decode simple protobuf bytes for unicorn ####################################################################################################################
-=begin deactivated for better testing of #4, TODO reactivate
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Unicorn", "include_path" => ['spec/helpers/unicorn.pb.rb'])  }
     before do
         plugin_unicorn.register      
@@ -31,14 +31,11 @@ describe LogStash::Codecs::Protobuf do
 
 
 
-
-=end
-
     #### Test case 2: Decode complex protobuf bytes for human #####################################################################################################################
 
 =begin
-
-  TODO deactivated because I found a bug that is unrelated to this branch and should be fixed after this is merged, thank you
+  
+    TODO deactivated because I found a bug that is unrelated to this branch and should be fixed after this is merged, thank you
 
     let(:plugin_human) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => ['spec/helpers/human.pb.rb'])  }
     before do
@@ -65,8 +62,8 @@ describe LogStash::Codecs::Protobuf do
         expect(event["father"]["middle_names"] ).to eq(data_f[:middle_names] )
       end
     end # it
-=end
 
+=end
   end # context
 
 
