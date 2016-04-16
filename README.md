@@ -10,7 +10,13 @@ This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to pa
 	bin/plugin install /path/to/logstash-codec-protobuf-$VERSION.gem
 * use the codec in your logstash config file. See details below.
 
-## Usage
+## Configuration
+
+include_path  (required): an array of strings with filenames or directory names where logstash can find your protobuf definitions. Please provide absolute paths. For directories it will only try to import files ending on .rb
+
+class_name    (required): the name of the protobuf class that is to be decoded.
+
+## Usage example: decoder
 
 Use this as a codec in any logstash input. Just provide the name of the class that your incoming objects will be encoded in, and specify the path to the compiled definition.
 Here's an example for a kafka input:
@@ -46,11 +52,11 @@ Set the class name to the parent class:
 	
 	class_name => "Foods::Dairy::Cheese"
 
-## Configuration
+## Usage example: encoder
 
-include_path	(required): an array of strings with filenames or directory names where logstash can find your protobuf definitions. Please provide absolute paths. For directories it will only try to import files ending on .rb
-
-class_name		(required): the name of the protobuf class that is to be decoded.
+The configuration of the codec for encoding logstash events for a protobuf output is pretty much the same as for the decoder input usage as demonstrated above. There are some constraints though that you need to be aware of:
+* the protobuf definition needs to contain all the fields that logstash typically adds to an event, in the corrent data type. Examples for this are @timestamp, @version, host, path, all of which depend on your input sources and filters aswell. If you do not want to add those fields to your protobuf definition then please use a [modify filter](https://www.elastic.co/guide/en/logstash/current/plugins-filters-mutate.html) to [remove](https://www.elastic.co/guide/en/logstash/current/plugins-filters-mutate.html#plugins-filters-mutate-remove_field) the undesired fields.
+* object members starting with @ are somewhat problematic in protobuf definitions. Therefore those fields will automatically be renamed to remove the at character. This also effects the important @timestamp field. Please name it just "timestamp" in your definition.
 
 
 ## Troubleshooting
@@ -59,7 +65,10 @@ class_name		(required): the name of the protobuf class that is to be decoded.
 
 If you include more than one definition class, consider the order of inclusion. This is especially relevant if you include whole directories. A definition might refer to another definition that is not loaded yet. In this case, please specify the files in the include_path variable in reverse order of reference. See 'Example with referenced definitions' above.
 
+### no protobuf output
 
-# #Roadmap
+Maybe your protobuf definition does not fullfill the requirements and needs additional fields. Run logstash with the --debug flag and grep for "error 2".
 
-Currently the plugin supports the decode functionality only. Maybe we'll add the encoding part also.
+
+
+

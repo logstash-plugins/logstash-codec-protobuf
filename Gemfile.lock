@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    logstash-codec-protobuf (0.1.0)
+    logstash-codec-protobuf (0.1.2)
       logstash-core (>= 1.4.0, < 3.0.0)
       ruby-protocol-buffers
 
