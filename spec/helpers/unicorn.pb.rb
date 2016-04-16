@@ -13,6 +13,7 @@ module Animal
     optional :string, :colour, 1
     optional :int32, :horn_length, 2
     optional :int32, :last_seen, 3
+    optional :bool, :has_wings, 4
   end
 
 end
