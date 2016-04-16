@@ -70,5 +70,8 @@ If you include more than one definition class, consider the order of inclusion. 
 Maybe your protobuf definition does not fullfill the requirements and needs additional fields. Run logstash with the --debug flag and grep for "error 2".
 
 
+## Caveats and roadmap
 
+* no support yet for enumerations
+* maybe add support for setting undefined fields from default values in the decoder
 
