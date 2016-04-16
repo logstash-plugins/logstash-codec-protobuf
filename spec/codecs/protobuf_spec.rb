@@ -33,10 +33,9 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 2: Decode complex protobuf bytes for human #####################################################################################################################
 
-=begin
-  
-    TODO deactivated because I found a bug that is unrelated to this branch and should be fixed after this is merged, thank you
 
+  
+ 
     let(:plugin_human) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => ['spec/helpers/human.pb.rb'])  }
     before do
         plugin_human.register      
@@ -44,26 +43,32 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return an event from complex nested protobuf encoded data" do
     
-      data_m = {:first_name => 'Annemarie', :last_name => "Smørebrød"}
+      data_gm = {:first_name => 'Elisabeth', :last_name => "Oliveoil", :middle_names => ["Maria","Johanna"], :vegetarian=>true}
+      grandmother = Animal::Human.new(data_gm)
+      data_m = {:first_name => 'Annemarie', :last_name => "Smørebrød", :mother => grandmother}
       mother = Animal::Human.new(data_m)
       data_f = {:first_name => 'Karl', :middle_names => ["Theodor-Augustin"], :last_name => "Falkenstein"}
       father = Animal::Human.new(data_f)
-      data = {:first_name => 'Hugo', :middle_names => ["Heinz", "Peter"], :last_name => "Smørebrød", :father => father, :mother => mother}
+      data = {:first_name => 'Hugo', :middle_names => ["Heinz", "Peter"], :last_name => "Smørebrød",:father => father, :mother => mother}  
       hugo = Animal::Human.new(data)
        
       plugin_human.decode(hugo.serialize_to_string) do |event|
         expect(event["first_name"] ).to eq(data[:first_name] )
         expect(event["middle_names"] ).to eq(data[:middle_names] )
         expect(event["last_name"] ).to eq(data[:last_name] )
-        expect(event["mother"]["first_name"] ).to eq(data_m[:first_name] )
+        expect(event["mother"]["first_name"] ).to eq(data_m[:first_name] ) 
         expect(event["father"]["first_name"] ).to eq(data_f[:first_name] )
         expect(event["mother"]["last_name"] ).to eq(data_m[:last_name] )
+        expect(event["mother"]["mother"]["last_name"] ).to eq(data_gm[:last_name] )
+        expect(event["mother"]["mother"]["first_name"] ).to eq(data_gm[:first_name] )
+        expect(event["mother"]["mother"]["middle_names"] ).to eq(data_gm[:middle_names] )
+        expect(event["mother"]["mother"]["vegetarian"] ).to eq(data_gm[:vegetarian] )
         expect(event["father"]["last_name"] ).to eq(data_f[:last_name] )
         expect(event["father"]["middle_names"] ).to eq(data_f[:middle_names] )
       end
     end # it
 
-=end
+
   end # context
 
 
@@ -132,4 +137,6 @@ describe LogStash::Codecs::Protobuf do
       subject.encode(event)
     end # it
   end # context
+
+
 end

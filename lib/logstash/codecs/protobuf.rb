@@ -28,9 +28,20 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def decode(data)
     decoded = @obj.parse(data.to_s)
-    results = extract_vars(decoded)
+    results = keys2strings(decoded.to_hash)
     yield LogStash::Event.new(results) if block_given?
   end # def decode
+
+  def keys2strings(data)
+    if data.is_a?(::Hash)
+      new_hash = Hash.new
+      data.each{|k,v| new_hash[k.to_s] = keys2strings(v)}
+      new_hash
+    else
+      data
+    end
+  end
+
 
   def encode(event)
     protobytes = generate_protobuf(event)
@@ -177,27 +188,5 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
   end
 
-
-  def extract_vars(decoded_object)
-    return {} if decoded_object.nil?
-    results = {}
-    decoded_object.instance_variables.each do |key|
-      formatted_key = key.to_s.gsub('@', '')
-      next if (formatted_key == :set_fields || formatted_key == "set_fields")
-      instance_var = decoded_object.instance_variable_get(key)
-
-      results[formatted_key] =
-        if instance_var.is_a?(::ProtocolBuffers::Message) 
-          extract_vars(instance_var)
-        elsif instance_var.is_a?(::Hash)
-          instance_var.inject([]) { |h, (k, v)| h[k.to_s] = extract_vars(v); h }
-        elsif instance_var.is_a?(Enumerable) # is a list/array
-          instance_var.inject([]) { |h, v| h.push(extract_vars(v)); h }
-        else
-          instance_var
-        end
-     end
-   results
-  end
 
 end # class LogStash::Codecs::Protobuf
