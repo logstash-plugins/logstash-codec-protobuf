@@ -74,7 +74,6 @@ describe LogStash::Codecs::Protobuf do
 
 
     #### Test case 3: Encode simple protobuf bytes for unicorn ####################################################################################################################
-=begin deactivated for better testing of #4, TODO reactivate
 
   context "#encode" do
     subject do
@@ -98,7 +97,7 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
-=end
+
 
 
 
@@ -117,14 +116,8 @@ describe LogStash::Codecs::Protobuf do
     it "should return protobuf encoded data from a complex event" do
 
       subject.on_event do |event, data|
-        puts "Hello 3" # todo remove
         insist { data.is_a? String }
-        puts "Hello 4" # todo remove
-        puts data
-        puts "Hello 5" # todo remove
-        
         jimmy = Animal::Human.parse(data) 
-        puts "Hello 6" # todo remove
         
         expect(jimmy.first_name ).to eq(event["first_name"] )
         expect(jimmy.middle_names ).to eq(event["middle_names"] )
@@ -134,15 +127,12 @@ describe LogStash::Codecs::Protobuf do
         expect(jimmy.mother.middle_names ).to eq(event["mother"]["middle_names"] )
         expect(jimmy.mother.age ).to eq(event["mother"]["age"] ) # recursion test for values
         expect(jimmy.mother.vegetarian ).to eq(event["mother"]["vegetarian"] ) # recursion test for values
-        expect(jimmy.father.vegetarian ).to eq(event["father"]["vegetarian"] ) # recursion test for values
         expect(jimmy.father.last_name ).to eq(event["father"]["last_name"] )
         expect(jimmy.father.email ).to eq(event["father"]["@email"] ) # recursion test for keys
         expect(jimmy.mother.last_name ).to eq(event["mother"]["last_name"] )
       
       end # subject.on_event
-      puts "Hello 1" # todo remove
       subject.encode(event)
-      puts "Hello 2" # todo remove
     end # it
   end # context
 end

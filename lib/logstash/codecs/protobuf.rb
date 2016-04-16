@@ -47,7 +47,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   + simple
   - needs full type information list
 
-  Idea 2: use the existing method prepare_event_for_protobuf(.) to generate a hash which works for everything but objects.
+  Idea 2: use the existing method clean_hash_keys(.) to generate a hash which works for everything but objects.
   Then take a list of the fields which are complex and their types and for each of them take the corresponding entry from the hash, make a protobuf object 
   from it (recursion here please) and assign it back into the same position in the hash.
   + The metadata lists will be short
@@ -57,11 +57,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 =end
     meth = self.method(encoder_method)
-    puts "Calling method " + encoder_method # TODO remove
     data = meth.call(event, @class_name) # call the prefered method
     puts "Fields: " + data.to_s #  TODO remove
     begin
       msg = @obj.new(data)
+      puts "If you can read this then protobuf encoding has worked. yaaay!" # TODO remove
       msg.serialize_to_string
     rescue NoMethodError
       puts "error 2" # TODO remove
@@ -76,27 +76,38 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def encoder_strategy_2(event, class_name)
     _encoder_strategy_2(event.to_hash, class_name)
+
   end
 
   def _encoder_strategy_2(datahash, class_name)
   # see description of strategies above.
-    fields = prepare_event_for_protobuf(datahash)
+    fields = clean_hash_keys(datahash)
+    fields = flatten_hash_values(fields) # TODO my gut tells me that this has to go elsewhere. 
     meta = get_complex_types(class_name) # returns a hash with member names and their protobuf class names
     puts "Metainfo for class " + class_name + " is " + meta.to_s # TODO remove
     meta.map do | (k,typeinfo) |
       puts "Key " + k # TODO remove
       puts "child class " + typeinfo # TODO remove
-      original_value = fields[k]
-      proto_obj = create_object_from_name(typeinfo)
-      fields[k] = if original_value.is_a?(::Array) 
-        ecs2_list_helper(original_value, proto_obj, typeinfo) 
+      if fields.include?(k)
+        original_value = fields[k] 
+        proto_obj = create_object_from_name(typeinfo)
+        fields[k] = 
+          if original_value.is_a?(::Array) 
+            ecs2_list_helper(original_value, proto_obj, typeinfo) 
+          else 
+            puts "Not a list"
+            puts "Starting recursion on value " + original_value.to_s
+            # TODO problem: at this point, the original_value has already been flattened, so this is a string. 
+            # what we can (and must?) do beforehand is the key renaming. 
+            # TODO but we also need to find a solution for the to_string for all the beautiful nested stuff. Maybe keep a 
+            recursive_fix = _encoder_strategy_2(original_value, class_name)
+            puts "Received from recursion: " + recursive_fix.to_hash.to_s
+            proto_obj.new(recursive_fix)
+          end # if is array
       else 
-        puts "Not a list"
-        puts "Starting recursion on value " + original_value.to_s
-        recursive_fix = _encoder_strategy_2(original_value, class_name)
-        puts "Received from recursion: " + recursive_fix.to_hash.to_s
-        proto_obj.new(recursive_fix)
+        puts "Dis field not given in data" # TODO remove
       end
+
     end 
     
     fields
@@ -113,17 +124,24 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     ] 
   end
 
-
-
-
-  def prepare_event_for_protobuf(datahash)
-    # 1) remove @ signs from keys 
+  def flatten_hash_values(datahash)
     # 2) convert timestamps and other objects to strings
-    Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), (convert_to_string?(v) ? v.to_s : v)] }] 
-  end #prepare_event_for_protobuf
+    next unless datahash.is_a?(::Hash)
+    puts "flatten_hash_values received data: " + datahash.to_s
+
+    Hash[datahash.map{|(k,v)| [k, (convert_to_string?(v) ? v.to_s : v)] }] 
+  end
+
+  def clean_hash_keys(datahash)
+    # 1) remove @ signs from keys 
+    next unless datahash.is_a?(::Hash)
+    puts "clean_hash_keys received data: " + datahash.to_s
+
+    Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), v] }] 
+  end #clean_hash_keys
 
   def convert_to_string?(v)
-    !(v.is_a?(Fixnum) || [true, false].include?(v))
+    !(v.is_a?(Fixnum) || v.is_a?(::Hash) || v.is_a?(::Array) || [true, false].include?(v)) # TODO what about lists and hashes? Also must not work on 
   end
 
    
