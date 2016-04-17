@@ -1,0 +1,24 @@
+
+
+message ColourProtoTest {
+
+    enum Colour {
+          BLACK = 0;
+          BLUE = 1;
+          WHITE = 2;
+          GREEN = 3;
+          RED = 4;
+          YELLOW = 5;
+          AQUA = 6;
+
+      }
+
+    // most liked colours; test enums in arrays.
+    repeated Colour favourite_colours = 1;
+
+    // why not also test booleans in arrays while we're at it. 
+    repeated bool booleantest = 2; 
+
+    // least liked colour
+    optional Colour least_liked = 3;
+}
