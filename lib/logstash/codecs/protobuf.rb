@@ -17,13 +17,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config :encoder_method, :validate => :string, :default => "encoder_strategy_1"
 
   def register
-    if !@is_registered
+    if !@is_registered # because I've often seen this being executed twice,
       @pb_metainfo = {}
       include_path.each { |path| require_pb_path(path) }
       @obj = create_object_from_name(class_name)
       @logger.debug("Protobuf files successfully loaded.")
       @is_registered = true
     end
+
   end
 
   def decode(data)

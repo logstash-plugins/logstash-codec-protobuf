@@ -7,6 +7,8 @@ require "insist"
 
 describe LogStash::Codecs::Protobuf do
 
+
+
   context "#decode" do
 
 
@@ -69,13 +71,41 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
+
+
+
+
+    #### Test case 3: Decoder test for enums #####################################################################################################################
+
+
+  
+ 
+    let(:plugin_col) { LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => ['spec/helpers/ColourTestcase.pb.rb'])  }
+    before do
+        plugin_col.register      
+    end
+
+    it "should return an event from protobuf encoded data with enums" do
+    
+      data = {:least_liked => ColourProtoTest::Colour::YELLOW, :favourite_colours => \
+        [ColourProtoTest::Colour::BLACK, ColourProtoTest::Colour::BLUE], :booleantest => [true, false, true]}  
+      pb = ColourProtoTest.new(data)
+       
+      plugin_col.decode(pb.serialize_to_string) do |event|
+        expect(event["least_liked"] ).to eq(data[:least_liked] )
+        expect(event["favourite_colours"] ).to eq(data[:favourite_colours] )
+        expect(event["booleantest"] ).to eq(data[:booleantest] )
+      end
+    end # it
+
+
   end # context
 
 
 
 
 
-    #### Test case 3: Encode simple protobuf bytes for unicorn ####################################################################################################################
+  #### Test case 4: Encode simple protobuf bytes for unicorn ####################################################################################################################
 
   context "#encode" do
     subject do
@@ -103,7 +133,7 @@ describe LogStash::Codecs::Protobuf do
 
 
 
-    #### Test case 4: encode complex protobuf bytes for human #####################################################################################################################
+  #### Test case 5: encode complex protobuf bytes for human #####################################################################################################################
   
   
   context "#encode2" do
@@ -137,6 +167,41 @@ describe LogStash::Codecs::Protobuf do
       subject.encode(event)
     end # it
   end # context
+
+
+
+
+
+  #### Test case 6: encode enums #########################################################################################################################
+  
+
+ 
+  context "#encode3" do
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => ['spec/helpers/ColourTestcase.pb.rb'])
+    end
+
+    require 'spec/helpers/ColourTestcase.pb.rb' # otherwise we cant use the colour enums in the next line
+    event = LogStash::Event.new("booleantest" =>  [false, false, true], "least_liked" => ColourProtoTest::Colour::YELLOW,  "favourite_colours" => \
+       [ColourProtoTest::Colour::BLACK, ColourProtoTest::Colour::BLUE] )    
+
+    it "should return protobuf encoded data from a complex event" do
+
+      subject.on_event do |event, data|
+        insist { data.is_a? String }
+
+        colpref = ColourProtoTest.parse(data) 
+        
+        expect(colpref.booleantest ).to eq(event["booleantest"] )
+        expect(colpref.least_liked ).to eq(event["least_liked"] )
+        expect(colpref.favourite_colours ).to eq(event["favourite_colours"] )
+
+      
+      end # subject.on_event
+      subject.encode(event)
+    end # it
+  end # context
+
 
 
 end

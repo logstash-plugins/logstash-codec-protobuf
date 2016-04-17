@@ -72,6 +72,5 @@ Maybe your protobuf definition does not fullfill the requirements and needs addi
 
 ## Limitations and roadmap
 
-* no support yet for enumerations
 * maybe add support for setting undefined fields from default values in the decoder
 
