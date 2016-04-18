@@ -14,7 +14,7 @@ This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to pa
 
 include_path  (required): an array of strings with filenames or directory names where logstash can find your protobuf definitions. Please provide absolute paths. For directories it will only try to import files ending on .rb
 
-class_name    (required): the name of the protobuf class that is to be decoded.
+class_name    (required): the name of the protobuf class that is to be decoded or encoded.
 
 ## Usage example: decoder
 
