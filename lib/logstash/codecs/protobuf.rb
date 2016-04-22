@@ -21,6 +21,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     include_path.each { |path| require_pb_path(path) }
     @obj = create_object_from_name(class_name)
     @logger.debug("Protobuf files successfully loaded.")
+
   end
 
   def decode(data)
@@ -48,7 +49,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   private
   def generate_protobuf(event)  
     meth = self.method(encoder_method)
-    data = meth.call(event, @class_name) # call the prefered method
+    data = meth.call(event, @class_name)
     begin
       msg = @obj.new(data)
       msg.serialize_to_string
@@ -63,7 +64,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def _encoder_strategy_1(datahash, class_name)
-  # see description of strategies above.
     fields = clean_hash_keys(datahash)
     fields = flatten_hash_values(fields) # TODO we could merge this and the above method back into one to save one iteration, but how are we going to name it?
     meta = get_complex_types(class_name) # returns a hash with member names and their protobuf class names
@@ -73,7 +73,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         proto_obj = create_object_from_name(typeinfo)
         fields[k] = 
           if original_value.is_a?(::Array) 
-            ecs1_list_helper(original_value, proto_obj, typeinfo) 
+            ecs1_list_helper(original_value, proto_obj, typeinfo)
+            
           else 
             recursive_fix = _encoder_strategy_1(original_value, class_name)
             proto_obj.new(recursive_fix)
@@ -89,25 +90,23 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # make this field an array/list of protobuf objects
     # value is a list of hashed complex objects, each of which needs to be protobuffed and
     # put back into the list.
-    List[value.each do |x| 
-      y = _encoder_strategy_1(x, class_name)
-      proto_obj.new(y)
-    end
-    ] 
+    next unless value.is_a?(::Array)
+    value.map { |x| _encoder_strategy_1(x, class_name) } 
+    value
   end
 
   def flatten_hash_values(datahash)
     # 2) convert timestamps and other objects to strings
     next unless datahash.is_a?(::Hash)
     
-    Hash[datahash.map{|(k,v)| [k, (convert_to_string?(v) ? v.to_s : v)] }] 
+    ::Hash[datahash.map{|(k,v)| [k, (convert_to_string?(v) ? v.to_s : v)] }]
   end
 
   def clean_hash_keys(datahash)
     # 1) remove @ signs from keys 
     next unless datahash.is_a?(::Hash)
     
-    Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), v] }] 
+    ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), v] }]
   end #clean_hash_keys
 
   def convert_to_string?(v)
@@ -140,18 +139,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # We'll unfortunately need that later so that we can create nested objects.
     begin 
       class_name = ""
+      type = ""
+      field_name = ""
       classname_found = false
       File.readlines(filename).each do |line|
-        if ! (line =~ regex_module_name).nil?
+        if ! (line =~ regex_module_name).nil? && !classname_found # because it might be declared twice in the file
           class_name << $1 
           class_name << "::"
+    
         end
-        if ! (line =~ regex_class_name).nil?
-          if !classname_found # because it might be declared twice in the file
-            class_name << $1
-            @pb_metainfo[class_name] = {}
-            classname_found = true
-          end
+        if ! (line =~ regex_class_name).nil? && !classname_found # because it might be declared twice in the file
+          class_name << $1
+          @pb_metainfo[class_name] = {}
+          classname_found = true
         end
         if ! (line =~ regex_pbdefs).nil?
           type = $1
@@ -162,12 +162,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           end
         end
       end
-    rescue
-      @logger.warn("error 3: unable to read pb definition from file  " + filename)
+    rescue Exception => e
+      @logger.warn("error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     end
     if class_name.nil?
-      @logger.warn("error 3: unable to read pb definition from file  " + filename)
-    end 
+      @logger.warn("error 4: class name not found in file  " + filename)
+    end    
   end
 
   def require_pb_path(dir_or_file)

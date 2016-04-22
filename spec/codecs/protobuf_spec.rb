@@ -8,7 +8,6 @@ require "insist"
 describe LogStash::Codecs::Protobuf do
 
 
-
   context "#decode" do
 
 
@@ -132,7 +131,6 @@ describe LogStash::Codecs::Protobuf do
 
 
 
-
   #### Test case 5: encode complex protobuf bytes for human #####################################################################################################################
   
   
@@ -185,7 +183,7 @@ describe LogStash::Codecs::Protobuf do
     event = LogStash::Event.new("booleantest" =>  [false, false, true], "least_liked" => ColourProtoTest::Colour::YELLOW,  "favourite_colours" => \
        [ColourProtoTest::Colour::BLACK, ColourProtoTest::Colour::BLUE] )    
 
-    it "should return protobuf encoded data from a complex event" do
+    it "should return protobuf encoded data from a complex event with enums" do
 
       subject.on_event do |event, data|
         insist { data.is_a? String }
