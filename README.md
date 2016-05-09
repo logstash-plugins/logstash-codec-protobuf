@@ -74,3 +74,4 @@ Maybe your protobuf definition does not fullfill the requirements and needs addi
 
 * maybe add support for setting undefined fields from default values in the decoder
 
+
