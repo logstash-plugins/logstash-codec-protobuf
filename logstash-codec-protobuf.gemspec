@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.metadata = { "logstash_plugin" => "true", "logstash_group" => "codec" }
 
   # Gem dependencies
-  s.add_runtime_dependency 'logstash-core', '>= 1.4.0', '< 3.0.0'
+  s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
   s.add_runtime_dependency 'ruby-protocol-buffers' # used by the compiled version of our protobuf definition. 
   s.add_development_dependency 'logstash-devutils'
 end
