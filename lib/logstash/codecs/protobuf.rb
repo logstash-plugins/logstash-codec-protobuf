@@ -3,18 +3,54 @@ require 'logstash/codecs/base'
 require 'logstash/util/charset'
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers
 
+# This codec converts protobuf messages into logstash events and vice versa. 
+#
+# Requires the protobuf definitions as ruby files. You can create those using the [ruby-protoc compiler](https://github.com/codekitchen/ruby-protocol-buffers).
+# 
+# The following shows a usage example for decoding events from a kafka stream:
+# [source,ruby]
+# kafka 
+# {
+#  zk_connect => "127.0.0.1"
+#  topic_id => "your_topic_goes_here"
+#  codec => protobuf 
+#  {
+#    class_name => "Animal::Unicorn"
+#    include_path => ['/path/to/protobuf/definitions/UnicornProtobuf.pb.rb']
+#  }
+# }
+#
+
 class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config_name 'protobuf'
 
-  # Required: list of strings containing directories or files with protobuf definitions
-  config :include_path, :validate => :array, :required => true
-
-  # Name of the class to decode
+  # Name of the class to decode as it is defined in class statement in the ruby version of your protobuf definitions. 
+  # If your protobuf definition contains modules, prepend them to the class name with double colons like so:
+  # [source,ruby]
+  # class_name => "Foods::Dairy::Cheese"
+  # 
+  # This corresponds to a protobuf definition starting as follows:
+  # [source,ruby]
+  # module Foods
+  #    module Dairy
+  #        class Cheese
+  # 
+  # If your class references other definitions: you only have to add the main class here.
   config :class_name, :validate => :string, :required => true
 
-  # For benchmarking only, not intended for public use: change encoder strategy. 
-  # valid method names are:  encoder_strategy_1 (the others are not implemented yet)
-  config :encoder_method, :validate => :string, :default => "encoder_strategy_1"
+  # List of absolute pathes to files with protobuf definitions. 
+  # If the number of files is larger than one, make sure to arrange the files in reverse order of dependency so that each class is loaded before it is 
+  # refered to by another.
+  # When using the codec in an output plugin: 
+  # * make sure to include all the desired fields in the protobuf definition, including timestamp. Remove fields that are not part of the protobuf definition from the event.
+  # * the @ symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field "timestamp" 
+  #   instead of "@timestamp" in the protobuf file. Logstash event fields will be stripped of the leading @ before conversion.
+  #  
+  config :include_path, :validate => :array, :required => true
+
+
+
+
 
   def register
     @pb_metainfo = {}
@@ -48,7 +84,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def generate_protobuf(event)  
-    meth = self.method(encoder_method)
+    meth = self.method("encoder_strategy_1")
     data = meth.call(event, @class_name)
     begin
       msg = @obj.new(data)
