@@ -3,7 +3,7 @@ require 'logstash/codecs/base'
 require 'logstash/util/charset'
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers
 
-# This codec converts protobuf messages into logstash events and vice versa. 
+# This codec converts protobuf encoded messages into logstash events and vice versa. 
 #
 # Requires the protobuf definitions as ruby files. You can create those using the [ruby-protoc compiler](https://github.com/codekitchen/ruby-protocol-buffers).
 # 
@@ -24,7 +24,7 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config_name 'protobuf'
 
-  # Name of the class to decode as it is defined in class statement in the ruby version of your protobuf definitions. 
+  # Name of the class to decode.
   # If your protobuf definition contains modules, prepend them to the class name with double colons like so:
   # [source,ruby]
   # class_name => "Foods::Dairy::Cheese"
@@ -34,15 +34,32 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # module Foods
   #    module Dairy
   #        class Cheese
+  #            # here are your field definitions.
   # 
   # If your class references other definitions: you only have to add the main class here.
   config :class_name, :validate => :string, :required => true
 
   # List of absolute pathes to files with protobuf definitions. 
-  # If the number of files is larger than one, make sure to arrange the files in reverse order of dependency so that each class is loaded before it is 
+  # When using more than one file, make sure to arrange the files in reverse order of dependency so that each class is loaded before it is 
   # refered to by another.
+  # 
+  # Example: a class _Cheese_ referencing another protobuf class _Milk_
+  # [source,ruby]
+  # module Foods
+  #   module Dairy
+  #         class Cheese
+  #            set_fully_qualified_name "Foods.Dairy.Cheese"
+  #            optional ::Foods::Cheese::Milk, :milk, 1
+  #            optional :int64, :unique_id, 2
+  #            # here be more field definitions
+  #
+  # would be configured as
+  # [source,ruby]
+  # include_path => ['/path/to/protobuf/definitions/Milk.pb.rb','/path/to/protobuf/definitions/Cheese.pb.rb']
+  #
   # When using the codec in an output plugin: 
-  # * make sure to include all the desired fields in the protobuf definition, including timestamp. Remove fields that are not part of the protobuf definition from the event.
+  # * make sure to include all the desired fields in the protobuf definition, including timestamp. 
+  #   Remove fields that are not part of the protobuf definition from the event by using the mutate filter.
   # * the @ symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field "timestamp" 
   #   instead of "@timestamp" in the protobuf file. Logstash event fields will be stripped of the leading @ before conversion.
   #  
