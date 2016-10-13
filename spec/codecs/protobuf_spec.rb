@@ -23,10 +23,10 @@ describe LogStash::Codecs::Protobuf do
       unicorn = Animal::Unicorn.new(data)
         
       plugin_unicorn.decode(unicorn.serialize_to_string) do |event|
-        expect(event["colour"] ).to eq(data[:colour] )
-        expect(event["horn_length"] ).to eq(data[:horn_length] )
-        expect(event["last_seen"] ).to eq(data[:last_seen] )
-        expect(event["has_wings"] ).to eq(data[:has_wings] )
+        expect(event.get("colour") ).to eq(data[:colour] )
+        expect(event.get("horn_length") ).to eq(data[:horn_length] )
+        expect(event.get("last_seen") ).to eq(data[:last_seen] )
+        expect(event.get("has_wings") ).to eq(data[:has_wings] )
       end
     end # it
 
@@ -54,18 +54,18 @@ describe LogStash::Codecs::Protobuf do
       hugo = Animal::Human.new(data)
        
       plugin_human.decode(hugo.serialize_to_string) do |event|
-        expect(event["first_name"] ).to eq(data[:first_name] )
-        expect(event["middle_names"] ).to eq(data[:middle_names] )
-        expect(event["last_name"] ).to eq(data[:last_name] )
-        expect(event["mother"]["first_name"] ).to eq(data_m[:first_name] ) 
-        expect(event["father"]["first_name"] ).to eq(data_f[:first_name] )
-        expect(event["mother"]["last_name"] ).to eq(data_m[:last_name] )
-        expect(event["mother"]["mother"]["last_name"] ).to eq(data_gm[:last_name] )
-        expect(event["mother"]["mother"]["first_name"] ).to eq(data_gm[:first_name] )
-        expect(event["mother"]["mother"]["middle_names"] ).to eq(data_gm[:middle_names] )
-        expect(event["mother"]["mother"]["vegetarian"] ).to eq(data_gm[:vegetarian] )
-        expect(event["father"]["last_name"] ).to eq(data_f[:last_name] )
-        expect(event["father"]["middle_names"] ).to eq(data_f[:middle_names] )
+        expect(event.get("first_name") ).to eq(data[:first_name] )
+        expect(event.get("middle_names") ).to eq(data[:middle_names] )
+        expect(event.get("last_name") ).to eq(data[:last_name] )
+        expect(event.get("[mother][first_name]") ).to eq(data_m[:first_name] ) 
+        expect(event.get("[father][first_name]") ).to eq(data_f[:first_name] )
+        expect(event.get("[mother][last_name]") ).to eq(data_m[:last_name] )
+        expect(event.get("[mother][mother][last_name]") ).to eq(data_gm[:last_name] )
+        expect(event.get("[mother][mother][first_name]") ).to eq(data_gm[:first_name] )
+        expect(event.get("[mother][mother][middle_names]") ).to eq(data_gm[:middle_names] )
+        expect(event.get("[mother][mother][vegetarian]") ).to eq(data_gm[:vegetarian] )
+        expect(event.get("[father][last_name]") ).to eq(data_f[:last_name] )
+        expect(event.get("[father][middle_names]") ).to eq(data_f[:middle_names] )
       end
     end # it
 
@@ -91,9 +91,9 @@ describe LogStash::Codecs::Protobuf do
       pb = ColourProtoTest.new(data)
        
       plugin_col.decode(pb.serialize_to_string) do |event|
-        expect(event["least_liked"] ).to eq(data[:least_liked] )
-        expect(event["favourite_colours"] ).to eq(data[:favourite_colours] )
-        expect(event["booleantest"] ).to eq(data[:booleantest] )
+        expect(event.get("least_liked") ).to eq(data[:least_liked] )
+        expect(event.get("favourite_colours") ).to eq(data[:favourite_colours] )
+        expect(event.get("booleantest") ).to eq(data[:booleantest] )
       end
     end # it
 
@@ -118,10 +118,10 @@ describe LogStash::Codecs::Protobuf do
         insist { data.is_a? String }
         unicorn = Animal::UnicornEvent.parse(data) 
     
-        expect(unicorn.colour ).to eq(event["colour"] )
-        expect(unicorn.horn_length ).to eq(event["horn_length"] )
-        expect(unicorn.last_seen ).to eq(event["last_seen"] )
-        expect(unicorn.has_wings ).to eq(event["has_wings"] )
+        expect(unicorn.colour ).to eq(event.get("colour") )
+        expect(unicorn.horn_length ).to eq(event.get("horn_length") )
+        expect(unicorn.last_seen ).to eq(event.get("last_seen") )
+        expect(unicorn.has_wings ).to eq(event.get("has_wings") )
       
       end # subject.on_event
       subject.encode(event)
@@ -149,17 +149,17 @@ describe LogStash::Codecs::Protobuf do
         insist { data.is_a? String }
         jimmy = Animal::Human.parse(data) 
         
-        expect(jimmy.first_name ).to eq(event["first_name"] )
-        expect(jimmy.middle_names ).to eq(event["middle_names"] )
-        expect(jimmy.last_name ).to eq(event["last_name"] )
-        expect(jimmy.mother.first_name ).to eq(event["mother"]["first_name"] )
-        expect(jimmy.father.first_name ).to eq(event["father"]["first_name"] )
-        expect(jimmy.mother.middle_names ).to eq(event["mother"]["middle_names"] )
-        expect(jimmy.mother.age ).to eq(event["mother"]["age"] ) # recursion test for values
-        expect(jimmy.mother.vegetarian ).to eq(event["mother"]["vegetarian"] ) # recursion test for values
-        expect(jimmy.father.last_name ).to eq(event["father"]["last_name"] )
-        expect(jimmy.father.email ).to eq(event["father"]["@email"] ) # recursion test for keys
-        expect(jimmy.mother.last_name ).to eq(event["mother"]["last_name"] )
+        expect(jimmy.first_name ).to eq(event.get("first_name") )
+        expect(jimmy.middle_names ).to eq(event.get("middle_names") )
+        expect(jimmy.last_name ).to eq(event.get("last_name") )
+        expect(jimmy.mother.first_name ).to eq(event.get("[mother][first_name]") )
+        expect(jimmy.father.first_name ).to eq(event.get("[father][first_name]") )
+        expect(jimmy.mother.middle_names ).to eq(event.get("[mother][middle_names]") )
+        expect(jimmy.mother.age ).to eq(event.get("[mother][age]") ) # recursion test for values
+        expect(jimmy.mother.vegetarian ).to eq(event.get("[mother][vegetarian]") ) # recursion test for values
+        expect(jimmy.father.last_name ).to eq(event.get("[father][last_name]") )
+        expect(jimmy.father.email ).to eq(event.get("[father][@email]") ) # recursion test for keys
+        expect(jimmy.mother.last_name ).to eq(event.get("[mother][last_name]") )
       
       end # subject.on_event
       subject.encode(event)
@@ -190,9 +190,9 @@ describe LogStash::Codecs::Protobuf do
 
         colpref = ColourProtoTest.parse(data) 
         
-        expect(colpref.booleantest ).to eq(event["booleantest"] )
-        expect(colpref.least_liked ).to eq(event["least_liked"] )
-        expect(colpref.favourite_colours ).to eq(event["favourite_colours"] )
+        expect(colpref.booleantest ).to eq(event.get("booleantest") )
+        expect(colpref.least_liked ).to eq(event.get("least_liked") )
+        expect(colpref.favourite_colours ).to eq(event.get("favourite_colours") )
 
       
       end # subject.on_event
