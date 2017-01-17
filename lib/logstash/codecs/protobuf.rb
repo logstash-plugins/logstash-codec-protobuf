@@ -78,9 +78,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def decode(data)
-    decoded = @obj.parse(data.to_s)
+    begin
+      decoded = @obj.parse(data.to_s)
+      yield LogStash::Event.new(decoded.to_hash) if block_given?
+    rescue => e
+      @logger.debug("Couldn't decode protobuf: ${e}")
+    end
     
-    yield LogStash::Event.new(decoded.to_hash) if block_given?
   end # def decode
 
   def encode(event)
@@ -89,21 +93,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def encode
 
   private
-  def generate_protobuf(event)  
-    meth = self.method("encoder_strategy_1")
-    data = meth.call(event, @class_name)
+  def generate_protobuf(event)
+    data = _encoder_strategy_1(event, @class_name)
     begin
       msg = @obj.new(data)
       msg.serialize_to_string
     rescue NoMethodError
       @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
+    rescue => e
+      @logger.debug("Couldn't generate protobuf: ${e}")
     end
   end
 
-  def encoder_strategy_1(event, class_name)
-    _encoder_strategy_1(event.to_hash, class_name)
 
-  end
 
   def _encoder_strategy_1(datahash, class_name)
     fields = clean_hash_keys(datahash)
@@ -115,8 +117,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         proto_obj = create_object_from_name(typeinfo)
         fields[k] = 
           if original_value.is_a?(::Array) 
-            ecs1_list_helper(original_value, proto_obj, typeinfo)
-            
+            ecs1_list_helper(original_value, proto_obj, typeinfo)            
           else 
             recursive_fix = _encoder_strategy_1(original_value, class_name)
             proto_obj.new(recursive_fix)
