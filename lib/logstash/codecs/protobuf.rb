@@ -79,20 +79,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def decode(data)
     decoded = @obj.parse(data.to_s)
-    results = keys2strings(decoded.to_hash)
-    yield LogStash::Event.new(results) if block_given?
+    
+    yield LogStash::Event.new(decoded.to_hash) if block_given?
   end # def decode
-
-  def keys2strings(data)
-    if data.is_a?(::Hash)
-      new_hash = Hash.new
-      data.each{|k,v| new_hash[k.to_s] = keys2strings(v)}
-      new_hash
-    else
-      data
-    end
-  end
-
 
   def encode(event)
     protobytes = generate_protobuf(event)
