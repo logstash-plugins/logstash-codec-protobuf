@@ -117,26 +117,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         original_value = fields[k] 
         proto_obj = create_object_from_name(typeinfo)
         fields[k] = 
-          if original_value.is_a?(::Array) 
-            ecs1_list_helper(original_value, proto_obj, typeinfo)            
+          if original_value.is_a?(::Array)
+            # make this field an array/list of protobuf objects
+            # value is a list of hashed complex objects, each of which needs to be protobuffed and
+            # put back into the list.
+            original_value.map { |x| _encoder_strategy_1(x, typeinfo) } 
+            original_value
           else 
             recursive_fix = _encoder_strategy_1(original_value, class_name)
             proto_obj.new(recursive_fix)
           end # if is array
       end
-
-    end 
-    
+    end    
     fields
-  end
-
-  def ecs1_list_helper(value, proto_obj, class_name)
-    # make this field an array/list of protobuf objects
-    # value is a list of hashed complex objects, each of which needs to be protobuffed and
-    # put back into the list.
-    next unless value.is_a?(::Array)
-    value.map { |x| _encoder_strategy_1(x, class_name) } 
-    value
   end
 
   def prepare_for_encoding(datahash)
