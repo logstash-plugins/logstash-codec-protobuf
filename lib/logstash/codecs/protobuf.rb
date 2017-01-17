@@ -94,8 +94,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def generate_protobuf(event)
-    data = _encoder_strategy_1(event, @class_name)
     begin
+      data = _encode(event, @class_name)
       msg = @obj.new(data)
       msg.serialize_to_string
     rescue NoMethodError
@@ -107,10 +107,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
 
-  def _encoder_strategy_1(datahash, class_name)
-
-    fields = prepare_for_encoding(datahash)
-    
+  def _encode(datahash, class_name)
+    fields = prepare_for_encoding(datahash)    
     meta = get_complex_types(class_name) # returns a hash with member names and their protobuf class names
     meta.map do | (k,typeinfo) |
       if fields.include?(k)
@@ -121,10 +119,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
             # make this field an array/list of protobuf objects
             # value is a list of hashed complex objects, each of which needs to be protobuffed and
             # put back into the list.
-            original_value.map { |x| _encoder_strategy_1(x, typeinfo) } 
+            original_value.map { |x| _encode(x, typeinfo) } 
             original_value
           else 
-            recursive_fix = _encoder_strategy_1(original_value, class_name)
+            recursive_fix = _encode(original_value, class_name)
             proto_obj.new(recursive_fix)
           end # if is array
       end
