@@ -66,16 +66,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config :include_path, :validate => :array, :required => true
 
 
-
-
-
   def register
     @pb_metainfo = {}
     include_path.each { |path| require_pb_path(path) }
     @obj = create_object_from_name(class_name)
     @logger.debug("Protobuf files successfully loaded.")
-
   end
+
 
   def decode(data)
     begin
@@ -84,13 +81,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     rescue => e
       @logger.debug("Couldn't decode protobuf: ${e}")
     end
-    
   end # def decode
+
 
   def encode(event)
     protobytes = generate_protobuf(event)
     @on_event.call(event, protobytes)
   end # def encode
+
 
   private
   def generate_protobuf(event)
@@ -104,7 +102,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       @logger.debug("Couldn't generate protobuf: ${e}")
     end
   end
-
 
 
   def _encode(datahash, class_name)
@@ -130,12 +127,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     fields
   end
 
+
   def prepare_for_encoding(datahash)
     # the data cannot be encoded until certain criteria are met:
     # 1) remove @ signs from keys 
     # 2) convert timestamps and other objects to strings
-    next unless datahash.is_a?(::Hash)
-    
+    next unless datahash.is_a?(::Hash)    
     ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), (convert_to_string?(v) ? v.to_s : v)] }]
   end
 
@@ -149,7 +146,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     key.dup.gsub(/@/,'')
   end
 
-  private
+  
   def create_object_from_name(name)
     begin
       @logger.debug("Creating instance of " + name)
