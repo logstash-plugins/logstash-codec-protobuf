@@ -108,8 +108,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def _encoder_strategy_1(datahash, class_name)
-    fields = clean_hash_keys(datahash)
-    fields = flatten_hash_values(fields) # TODO we could merge this and the above method back into one to save one iteration, but how are we going to name it?
+
+    fields = prepare_for_encoding(datahash)
+    
     meta = get_complex_types(class_name) # returns a hash with member names and their protobuf class names
     meta.map do | (k,typeinfo) |
       if fields.include?(k)
@@ -138,19 +139,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     value
   end
 
-  def flatten_hash_values(datahash)
+  def prepare_for_encoding(datahash)
+    # the data cannot be encoded until certain criteria are met:
+    # 1) remove @ signs from keys 
     # 2) convert timestamps and other objects to strings
     next unless datahash.is_a?(::Hash)
     
-    ::Hash[datahash.map{|(k,v)| [k, (convert_to_string?(v) ? v.to_s : v)] }]
+    ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), (convert_to_string?(v) ? v.to_s : v)] }]
   end
 
-  def clean_hash_keys(datahash)
-    # 1) remove @ signs from keys 
-    next unless datahash.is_a?(::Hash)
-    
-    ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), v] }]
-  end #clean_hash_keys
 
   def convert_to_string?(v)
     !(v.is_a?(Fixnum) || v.is_a?(::Hash) || v.is_a?(::Array) || [true, false].include?(v))
