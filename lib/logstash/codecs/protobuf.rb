@@ -79,7 +79,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       decoded = @obj.parse(data.to_s)
       yield LogStash::Event.new(decoded.to_hash) if block_given?
     rescue => e
-      @logger.debug("Couldn't decode protobuf: ${e}")
+      @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
+      # raise e
     end
   end # def decode
 
