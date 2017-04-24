@@ -66,32 +66,23 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config :include_path, :validate => :array, :required => true
 
 
-
-
-
   def register
     @pb_metainfo = {}
     include_path.each { |path| require_pb_path(path) }
     @obj = create_object_from_name(class_name)
     @logger.debug("Protobuf files successfully loaded.")
-
   end
+
 
   def decode(data)
-    decoded = @obj.parse(data.to_s)
-    results = keys2strings(decoded.to_hash)
-    yield LogStash::Event.new(results) if block_given?
-  end # def decode
-
-  def keys2strings(data)
-    if data.is_a?(::Hash)
-      new_hash = Hash.new
-      data.each{|k,v| new_hash[k.to_s] = keys2strings(v)}
-      new_hash
-    else
-      data
+    begin
+      decoded = @obj.parse(data.to_s)
+      yield LogStash::Event.new(decoded.to_hash) if block_given?
+    rescue => e
+      @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
+      # raise e
     end
-  end
+  end # def decode
 
 
   def encode(event)
@@ -99,68 +90,53 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @on_event.call(event, protobytes)
   end # def encode
 
+
   private
-  def generate_protobuf(event)  
-    meth = self.method("encoder_strategy_1")
-    data = meth.call(event, @class_name)
+  def generate_protobuf(event)
     begin
+      data = _encode(event, @class_name)
       msg = @obj.new(data)
       msg.serialize_to_string
     rescue NoMethodError
       @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
+    rescue => e
+      @logger.debug("Couldn't generate protobuf: ${e}")
     end
   end
 
-  def encoder_strategy_1(event, class_name)
-    _encoder_strategy_1(event.to_hash, class_name)
 
-  end
-
-  def _encoder_strategy_1(datahash, class_name)
-    fields = clean_hash_keys(datahash)
-    fields = flatten_hash_values(fields) # TODO we could merge this and the above method back into one to save one iteration, but how are we going to name it?
+  def _encode(datahash, class_name)
+    fields = prepare_for_encoding(datahash)    
     meta = get_complex_types(class_name) # returns a hash with member names and their protobuf class names
     meta.map do | (k,typeinfo) |
       if fields.include?(k)
         original_value = fields[k] 
         proto_obj = create_object_from_name(typeinfo)
         fields[k] = 
-          if original_value.is_a?(::Array) 
-            ecs1_list_helper(original_value, proto_obj, typeinfo)
-            
+          if original_value.is_a?(::Array)
+            # make this field an array/list of protobuf objects
+            # value is a list of hashed complex objects, each of which needs to be protobuffed and
+            # put back into the list.
+            original_value.map { |x| _encode(x, typeinfo) } 
+            original_value
           else 
-            recursive_fix = _encoder_strategy_1(original_value, class_name)
+            recursive_fix = _encode(original_value, class_name)
             proto_obj.new(recursive_fix)
           end # if is array
       end
-
-    end 
-    
+    end    
     fields
   end
 
-  def ecs1_list_helper(value, proto_obj, class_name)
-    # make this field an array/list of protobuf objects
-    # value is a list of hashed complex objects, each of which needs to be protobuffed and
-    # put back into the list.
-    next unless value.is_a?(::Array)
-    value.map { |x| _encoder_strategy_1(x, class_name) } 
-    value
-  end
 
-  def flatten_hash_values(datahash)
-    # 2) convert timestamps and other objects to strings
-    next unless datahash.is_a?(::Hash)
-    
-    ::Hash[datahash.map{|(k,v)| [k, (convert_to_string?(v) ? v.to_s : v)] }]
-  end
-
-  def clean_hash_keys(datahash)
+  def prepare_for_encoding(datahash)
+    # the data cannot be encoded until certain criteria are met:
     # 1) remove @ signs from keys 
-    next unless datahash.is_a?(::Hash)
-    
-    ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), v] }]
-  end #clean_hash_keys
+    # 2) convert timestamps and other objects to strings
+    next unless datahash.is_a?(::Hash)    
+    ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), (convert_to_string?(v) ? v.to_s : v)] }]
+  end
+
 
   def convert_to_string?(v)
     !(v.is_a?(Fixnum) || v.is_a?(::Hash) || v.is_a?(::Array) || [true, false].include?(v))
@@ -171,7 +147,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     key.dup.gsub(/@/,'')
   end
 
-  private
+  
   def create_object_from_name(name)
     begin
       @logger.debug("Creating instance of " + name)
