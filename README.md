@@ -5,9 +5,7 @@ This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to pa
 # Prerequisites and Installation
  
 * prepare your ruby versions of the protobuf definitions, for example using the ruby-protoc compiler from https://github.com/codekitchen/ruby-protocol-buffers
-* download the [gem file](https://rubygems.org/gems/logstash-codec-protobuf) to your computer.
-* Install the plugin. From within your logstash directory, do
-	bin/plugin install /path/to/logstash-codec-protobuf-$VERSION.gem
+* install the codec: `bin/logstash-plugin install logstash-codec-protobuf`
 * use the codec in your logstash config file. See details below.
 
 ## Configuration
