@@ -7,7 +7,7 @@ START - GENERATED VARIABLES, DO NOT EDIT!
 :version: %VERSION%
 :release_date: %RELEASE_DATE%
 :changelog_url: %CHANGELOG_URL%
-:include_path: ../../../logstash/docs/include
+:include_path: ../../../../logstash/docs/include
 ///////////////////////////////////////////
 END - GENERATED VARIABLES, DO NOT EDIT!
 ///////////////////////////////////////////
@@ -41,17 +41,12 @@ kafka
 [id="plugins-{type}s-{plugin}-options"]
 ==== Protobuf Codec Configuration Options
 
-This plugin supports the following configuration options plus the <<plugins-{type}s-common-options>> described later.
-
 [cols="<,<,<",options="header",]
 |=======================================================================
 |Setting |Input type|Required
 | <<plugins-{type}s-{plugin}-class_name>> |<<string,string>>|Yes
 | <<plugins-{type}s-{plugin}-include_path>> |<<array,array>>|Yes
 |=======================================================================
-
-Also see <<plugins-{type}s-common-options>> for a list of options supported by all
-codec plugins.
 
 &nbsp;
 
@@ -109,5 +104,3 @@ When using the codec in an output plugin:
  
 
 
-
-include::{include_path}/{type}.asciidoc[]
