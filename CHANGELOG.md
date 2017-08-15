@@ -1,3 +1,6 @@
+## 1.0.3
+  - Fix some documentation issues
+
 ## 1.0.1
  - Speed improvement, better exception handling and code refactoring
 
