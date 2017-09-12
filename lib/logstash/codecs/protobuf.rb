@@ -100,7 +100,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     rescue NoMethodError
       @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
     rescue => e
-      @logger.debug("Couldn't generate protobuf: ${e}")
+      @logger.debug("Couldn't generate protobuf: #{e.inspect}")
     end
   end
 
