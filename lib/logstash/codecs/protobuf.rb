@@ -94,7 +94,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   private
   def generate_protobuf(event)
     begin
-      data = _encode(event, @class_name)
+      data = _encode(event.to_hash, @class_name)
       msg = @obj.new(data)
       msg.serialize_to_string
     rescue NoMethodError
