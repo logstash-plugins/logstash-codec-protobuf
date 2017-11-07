@@ -1,9 +1,9 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-codec-protobuf'
-  s.version         = '1.0.3'
+  s.version         = '1.0.4'
   s.licenses        = ['Apache License (2.0)']
-  s.summary         = "This codec may be used to decode (via inputs) and encode (via outputs) protobuf messages"
+  s.summary         = "Reads protobuf messages and converts to Logstash Events"
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
   s.authors         = ["Inga Feick"]
   s.email           = 'inga.feick@trivago.com'
