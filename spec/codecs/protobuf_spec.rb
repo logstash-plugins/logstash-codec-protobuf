@@ -12,23 +12,28 @@ describe LogStash::Codecs::Protobuf do
 
 
     #### Test case 1: Decode simple protobuf bytes for unicorn ####################################################################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => ['spec/helpers/unicorn.pb3.rb'])  }
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => ['spec/helpers/unicorn_pb.rb'])  }
     before do
         plugin_unicorn.register      
     end
 
     it "should return an event from protobuf encoded data" do
     
-      data = {:colour => 'rainbow', :horn_length => 18, :last_seen => 1420081471, :favourite_numbers => [4711,23]}
-      unicornicator = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-
-      unicorn = unicornicator.new(data)
-      bin = unicornicator.encode(unicorn)
+      unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
+      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23]
+        #, :colour => unicorn_class::Colour::PINK
+        #, :favourite_colours => [unicorn_class::Colour::GREEN, unicorn_class::Colour::BLUE]
+        }
+      
+      unicorn_object = unicorn_class.new(data)
+      bin = unicorn_class.encode(unicorn_object)
       plugin_unicorn.decode(bin) do |event|
-        expect(event.get("colour") ).to eq(data[:colour] )
-        expect(event.get("horn_length") ).to eq(data[:horn_length] )
-        expect(event.get("last_seen") ).to eq(data[:last_seen])
+        # expect(event.get("colour") ).to eq(data[:colour] ) TODO
+        expect(event.get("name") ).to eq(data[:name] )
+        expect(event.get("age") ).to eq(data[:age])
         expect(event.get("favourite_numbers") ).to eq(data[:favourite_numbers] )
+        # expect(event.get("favourite_colours") ).to eq(data[:favourite_colours] ) TODO
+        expect(event.get("is_pegasus") ).to eq(data[:is_pegasus] )
       end
     end # it
 
