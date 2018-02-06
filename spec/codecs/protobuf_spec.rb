@@ -20,19 +20,18 @@ describe LogStash::Codecs::Protobuf do
     it "should return an event from protobuf encoded data" do
     
       unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23]
-        #, :colour => unicorn_class::Colour::PINK
-        #, :favourite_colours => [unicorn_class::Colour::GREEN, unicorn_class::Colour::BLUE]
+      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23], :fur_colour => unicorn_class::Colour::PINK, 
+        :favourite_colours => [unicorn_class::Colour::GREEN, unicorn_class::Colour::BLUE]
         }
       
       unicorn_object = unicorn_class.new(data)
       bin = unicorn_class.encode(unicorn_object)
       plugin_unicorn.decode(bin) do |event|
-        # expect(event.get("colour") ).to eq(data[:colour] ) TODO
+        expect(event.get("colour") ).to eq(data[:colour] ) 
         expect(event.get("name") ).to eq(data[:name] )
         expect(event.get("age") ).to eq(data[:age])
         expect(event.get("favourite_numbers") ).to eq(data[:favourite_numbers] )
-        # expect(event.get("favourite_colours") ).to eq(data[:favourite_colours] ) TODO
+        expect(event.get("favourite_colours") ).to eq(data[:favourite_colours] )
         expect(event.get("is_pegasus") ).to eq(data[:is_pegasus] )
       end
     end # it
