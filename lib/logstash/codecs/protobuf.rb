@@ -65,6 +65,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   #  
   config :include_path, :validate => :array, :required => true
 
+  # TODO documentation
+  config :resolve_enums_to_int, :validate => :boolean, :required => false, :default => true
+
+  # TODO documentation
+  config :auto_translate_enums, :validate => :boolean, :required => false, :default => false
+
 
   def register
     @pb_metainfo = {}
@@ -77,7 +83,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     begin
       decoded = @pb_builder.decode(data.to_s)
-      h = deep_to_hash(decoded)
+      h = deep_to_hash(nil, decoded)
       yield LogStash::Event.new(h) if block_given?
       
     rescue => e
@@ -88,19 +94,24 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def encode(event)
-    # TODO not updated to the new lib, needs rewrite
     protobytes = generate_protobuf(event)
     @on_event.call(event, protobytes)
   end # def encode
 
 
   private
-  def deep_to_hash(input)
+  def deep_to_hash(original_key, input)
     if input.class.ancestors.include? Google::Protobuf::MessageExts
-
       result = Hash.new
+      # if @auto_translate_enums TODO
+      #   if @resolve_enums_to_int
+      #     # add a new field with the original value
+      #     # TODO
+      # end
+
       input.to_hash.each {|key, value|
-        result[key] = deep_to_hash(value) 
+        result[key] = deep_to_hash(key, value) # the key is required for the class lookup of enums.
+
       }
       
     elsif input.kind_of?(Array)
@@ -108,11 +119,21 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       input.each {|value|
           result << deep_to_hash(value)
       }
+    elsif input.instance_of? Symbol
+      # is an Enum
+      if @resolve_enums_to_int
+        enum_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(original_key).enummodule
+        result = enum_class.resolve(input)
+      else
+        result = input.to_s.sub(':','')
+      end
+
     else
       result = input
     end
     result
   end
+
 
 
   def generate_protobuf(event)
