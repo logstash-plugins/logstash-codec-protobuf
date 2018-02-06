@@ -1,7 +1,7 @@
 # encoding: utf-8
 require 'logstash/codecs/base'
 require 'logstash/util/charset'
-require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers
+require 'google/protobuf'
 
 # This codec converts protobuf encoded messages into logstash events and vice versa. 
 #
@@ -69,15 +69,17 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def register
     @pb_metainfo = {}
     include_path.each { |path| require_pb_path(path) }
-    @obj = create_object_from_name(class_name)
+    @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
     @logger.debug("Protobuf files successfully loaded.")
   end
 
 
   def decode(data)
     begin
-      decoded = @obj.parse(data.to_s)
-      yield LogStash::Event.new(decoded.to_hash) if block_given?
+      decoded = @pb_builder.decode(data.to_s)
+      h = deep_to_hash(decoded)
+      yield LogStash::Event.new(h) if block_given?
+      
     rescue => e
       @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
       # raise e
@@ -86,16 +88,37 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def encode(event)
+    # TODO not updated to the new lib, needs rewrite
     protobytes = generate_protobuf(event)
     @on_event.call(event, protobytes)
   end # def encode
 
 
   private
+  def deep_to_hash(input)
+    if input.class.ancestors.include? Google::Protobuf::MessageExts
+
+      result = Hash.new
+      input.to_hash.each {|key, value|
+        result[key] = deep_to_hash(value) 
+      }
+      
+    elsif input.kind_of?(Array)
+      result = []
+      input.each {|value|
+          result << deep_to_hash(value)
+      }
+    else
+      result = input
+    end
+    result
+  end
+
+
   def generate_protobuf(event)
     begin
       data = _encode(event, @class_name)
-      msg = @obj.new(data)
+      msg = @pb_builder.new(data)
       msg.serialize_to_string
     rescue NoMethodError
       @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
