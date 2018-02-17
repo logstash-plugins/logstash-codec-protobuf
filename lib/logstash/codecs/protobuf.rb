@@ -123,6 +123,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       input.each {|value|
           result << pb3_deep_to_hash(value)
       }
+    elsif input.kind_of?(::Hash)
+      result = {}
+      input.each {|key, value|
+          result[key] = pb3_deep_to_hash(value)
+      }
     elsif input.instance_of? Symbol # is an Enum
       result = input.to_s.sub(':','')
     else

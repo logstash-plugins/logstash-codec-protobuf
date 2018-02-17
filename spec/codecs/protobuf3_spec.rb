@@ -51,17 +51,21 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return an event from protobuf encoded data with nested classes" do
     
-      unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-      data = {:name => 'Glitter', :fur_colour => Colour::GLITTER
-      }
 
-      # TODO set and test mother and father
-      
+      unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
+
+      father = unicorn_class.new({:name=> "Sparkle", :age => 50, :fur_colour => 3 })
+      data = {:name => 'Glitter', :fur_colour => Colour::GLITTER, :father => father}   
+     
       unicorn_object = unicorn_class.new(data)
       bin = unicorn_class.encode(unicorn_object)
       plugin_unicorn.decode(bin) do |event|
         expect(event.get("name") ).to eq(data[:name] )
         expect(event.get("fur_colour") ).to eq("GLITTER" )
+        expect(event.get("father")["name"] ).to eq(data[:father][:name] )
+        expect(event.get("father")["age"] ).to eq(data[:father][:age] )
+        expect(event.get("father")["fur_colour"] ).to eq("SILVER")
+
       end
     end # it
 
