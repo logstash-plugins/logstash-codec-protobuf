@@ -67,10 +67,46 @@ describe LogStash::Codecs::Protobuf do
 
   end # context #decodePB3
 
-  # TODO encodePB3
 
- 
+  context "#encodePB3" do
 
 
+    #### Test case 1: Decode simple protobuf ####################################################################################################################
+
+    definitions_file = 'spec/helpers/pb3/unicorn_pb.rb'
+    require definitions_file
+
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [definitions_file], "protobuf_version_3" => true)
+    end
+
+    event = LogStash::Event.new("name" => "Pinkie", "age" => 18, "is_pegasus" => false
+      # ,"favourite_numbers" => [4711,23], "fur_colour" => Colour::PINK , "favourite_colours" => [Colour::GREEN, Colour::BLUE]
+      )
+
+    it "should return protobuf encoded data from a logstash event" do
+
+      subject.on_event do |event, data|
+        insist { data.is_a? String }
+
+        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
+        decoded_data = pb_builder.decode(data) 
+        
+        expect(decoded_data.name ).to eq(event.get("name") )
+        expect(decoded_data.age ).to eq(event.get("age") )
+        expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
+        # TODO expect(decoded_data.favourite_numbers ).to eq(event.get("favourite_numbers") )
+        # TODO expect(decoded_data.fur_colour ).to eq(event.get("fur_colour") )
+        # TODO expect(decoded_data.favourite_colours ).to eq(event.get("favourite_colours") )
+
+      
+      end # subject.on_event
+      subject.encode(event)
+    end # it
+
+
+    # TODO write more complex encoder testcase for nested classes. Especially test the key symbolization, it needs recursion.
+
+  end # context #encodePB3
 
 end # describe
