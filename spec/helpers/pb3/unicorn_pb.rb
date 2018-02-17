@@ -11,7 +11,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     repeated :favourite_colours, :enum, 4, "Colour"
     repeated :favourite_numbers, :int32, 5
     optional :is_pegasus, :bool, 6
-    optional :@timestamp, :string, 7
+    optional :timestamp, :string, 7
+    optional :version, :string, 8
   end
   add_enum "Colour" do
     value :GREEN, 0
