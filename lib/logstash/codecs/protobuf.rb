@@ -87,7 +87,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     begin
       if @protobuf_version_3
         decoded = @pb_builder.decode(data.to_s)
-        h = pb3_deep_to_hash(nil, decoded)
+        h = pb3_deep_to_hash(decoded)
       else
         decoded = @pb_builder.parse(data.to_s)
         h = decoded.to_hash        
@@ -111,11 +111,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   private
-  def pb3_deep_to_hash(original_key, input)
+  def pb3_deep_to_hash(input)
     if input.class.ancestors.include? Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
       input.to_hash.each {|key, value|
-        result[key] = pb3_deep_to_hash(key, value) # the key is required for the class lookup of enums.
+        result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }      
     elsif input.kind_of?(Array)
       result = []
@@ -154,7 +154,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       # 2) convert timestamps and other objects to strings
       datahash = ::Hash[datahash.map{|(k,v)| [k.to_s.dup.gsub(/@/,''), (should_convert_to_string?(v) ? v.to_s : v)] }]
     end
-    
+
     meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
     meta.map do | (k,typeinfo) |
       if datahash.include?(k)
