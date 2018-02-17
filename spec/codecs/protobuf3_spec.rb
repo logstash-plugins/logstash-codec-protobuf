@@ -105,7 +105,41 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
-    # TODO write more complex encoder testcase for nested classes. Especially test the key symbolization, it needs recursion.
+    #### Test case 2: Decode nested protobuf ####################################################################################################################
+
+    definitions_file = 'spec/helpers/pb3/unicorn_pb.rb'
+    require definitions_file
+
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [definitions_file], "protobuf_version_3" => true)
+    end
+
+    event = LogStash::Event.new("name" => "Horst", "age" => 23, "is_pegasus" => true, "mother" => \
+        {"name" => "Mom", "age" => 47}, "father" => {"name"=> "Daddy", "age"=> 50}      
+      )
+
+    it "should return protobuf encoded data from a logstash event" do
+
+      subject.on_event do |event, data|
+        insist { data.is_a? String }
+
+        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
+        decoded_data = pb_builder.decode(data) 
+        
+        expect(decoded_data.name ).to eq(event.get("name") )
+        expect(decoded_data.age ).to eq(event.get("age") )
+        expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
+        expect(decoded_data.mother.name ).to eq(event.get("mother")["name"] )
+        expect(decoded_data.mother.age ).to eq(event.get("mother")["age"] )
+        expect(decoded_data.father.name ).to eq(event.get("father")["name"] )
+        expect(decoded_data.father.age ).to eq(event.get("father")["age"] )
+
+      
+      end # subject.on_event
+      subject.encode(event)
+    end # it
+
+
 
   end # context #encodePB3
 

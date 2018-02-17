@@ -132,8 +132,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def pb3_encode_wrapper(event)
     begin
-      data = event.to_hash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x} # TODO for nested classes this will have to be done recursively
-      puts "pb3_encode_wrapper data: #{data}"
+      data = pb3_encode(event.to_hash, @class_name)
       pb_obj = @pb_builder.new(data)
       @pb_builder.encode(pb_obj)
     rescue ArgumentError => e
@@ -143,6 +142,39 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       @logger.debug("Couldn't generate protobuf: ${e}")
       raise e
     end
+  end
+
+
+  def pb3_encode(datahash, class_name)
+    next unless datahash.is_a?(::Hash)
+
+    # Preparation: the data cannot be encoded until certain criteria are met:
+    # 1) remove @ signs from keys.
+    # 2) convert timestamps and other objects to strings
+    datahash = datahash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x}
+    
+    meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
+    if meta
+      meta.map do | (field_name,class_name) |
+        key = field_name.to_sym
+        if datahash.include?(key)
+          original_value = datahash[key] 
+          datahash[key] = 
+            if original_value.is_a?(::Array)
+              # make this field an array/list of protobuf objects
+              # value is a list of hashed complex objects, each of which needs to be protobuffed and
+              # put back into the list.
+              original_value.map { |x| pb3_encode(x, class_name) } 
+              original_value
+            else 
+              r = pb3_encode(original_value, class_name)
+              builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
+              builder.new(r)              
+            end # if is array
+        end # if datahash_include
+      end # do
+    end # if meta
+    datahash
   end
 
   def pb2_encode_wrapper(event)
@@ -163,27 +195,28 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def pb2_encode(datahash, class_name)
     next unless datahash.is_a?(::Hash)
 
-    # the data cannot be encoded until certain criteria are met:
+    # Preparation: the data cannot be encoded until certain criteria are met:
     # 1) remove @ signs from keys.
     # 2) convert timestamps and other objects to strings
     datahash = ::Hash[datahash.map{|(k,v)| [k.to_s.dup.gsub(/@/,''), (should_convert_to_string?(v) ? v.to_s : v)] }]
     
     meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
     if meta
-      meta.map do | (k,typeinfo) |
+      meta.map do | (k,class_name) |
         if datahash.include?(k)
           original_value = datahash[k] 
-          proto_obj = pb2_create_instance(typeinfo)
+          p
           datahash[k] = 
             if original_value.is_a?(::Array)
               # make this field an array/list of protobuf objects
               # value is a list of hashed complex objects, each of which needs to be protobuffed and
               # put back into the list.
-              original_value.map { |x| pb2_encode(x, typeinfo) } 
+              original_value.map { |x| pb2_encode(x, class_name) } 
               original_value
             else 
-              recursive_fix = pb2_encode(original_value, class_name)
-              proto_obj.new(recursive_fix)
+              r = pb2_encode(original_value, class_name)
+              roto_obj = pb2_create_instance(class_name)
+              proto_obj.new(r)
             end # if is array
         end # if datahash_include
       end # do
@@ -205,8 +238,41 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
 
+  def pb3_metadata_analyis(filename)
+    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_pbdefs = /\s*(optional|repeated)(\s*):(?<name>.+),(\s*):(?<type>\w+),(\s*)(?<position>\d+)(, \"(?<enum_class>.*?)\")?/
+    # Example 
+    # optional :father, :message, 10, "Unicorn"
+    # repeated :favourite_numbers, :int32, 5
+    begin 
+      class_name = ""
+      type = ""
+      field_name = ""
+      File.readlines(filename).each do |line|
+        if ! (line =~ regex_class_name).nil? 
+          class_name = $1
+          @pb_metainfo[class_name] = {}
+        end
+        if ! (line =~ regex_pbdefs).nil?
+          field_name = $1
+          type = $2
+          class_name = $4
+          if type == "message"
+            @pb_metainfo[class_name][field_name] = class_name
+          end
+        end
+      end
+    rescue Exception => e
+      @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+      raise e
+    end
+    if class_name.nil?
+      @logger.warn("Error 4: class name not found in file  " + filename)
+      raise ArgumentError, "Invalid protobuf file: " + filename
+    end    
+  end
+
   def pb2_metadata_analyis(filename)
-    require filename
     regex_class_name = /\s*class\s*(?<name>.+?)\s+/
     regex_module_name = /\s*module\s*(?<name>.+?)\s+/
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<type>.+),(\s*):(?<name>\w+),(\s*)(?<position>\d+)/
@@ -238,10 +304,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         end
       end
     rescue Exception => e
-      @logger.warn("error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+      @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+      raise e
     end
     if class_name.nil?
-      @logger.warn("error 4: class name not found in file  " + filename)
+      @logger.warn("Error 4: class name not found in file  " + filename)
+      raise ArgumentError, "Invalid protobuf file: " + filename
     end    
   end
 
@@ -251,7 +319,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         @logger.debug("Including protobuf file: " + filename)
         require filename
         if @protobuf_version_3
-          # todo read enum metadata
+          pb3_metadata_analyis(filename)
         else
           pb2_metadata_analyis(filename)
         end

@@ -13,6 +13,8 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :is_pegasus, :bool, 6
     optional :timestamp, :string, 7
     optional :version, :string, 8
+    optional :mother, :message, 9, "Unicorn"
+    optional :father, :message, 10, "Unicorn"
   end
   add_enum "Colour" do
     value :GREEN, 0

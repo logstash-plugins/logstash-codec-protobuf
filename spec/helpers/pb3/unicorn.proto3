@@ -12,6 +12,8 @@ message Unicorn {
     bool is_pegasus = 6;
     string timestamp = 7; # Logstash adds this to the event, needed for encoder test
     string version = 8; # Logstash adds this to the event, needed for encoder test
+    Unicorn mother = 9;
+    Unicorn father = 10;
 }
 
 enum Colour {
