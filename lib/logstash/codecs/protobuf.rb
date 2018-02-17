@@ -73,7 +73,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def register
-    @pb_metainfo = {}
+    @metainfo_messageclasses = {}
+    @metainfo_enumclasses = {}
     include_path.each { |path| load_protobuf_definition(path) }
     if @protobuf_version_3      
       @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
@@ -153,7 +154,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # 2) convert timestamps and other objects to strings
     datahash = datahash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x}
     
-    meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
+    # Check if any of the fields in this hash are protobuf classes and if so, create a builder for them.
+    meta = @metainfo_messageclasses[class_name]
     if meta
       meta.map do | (field_name,class_name) |
         key = field_name.to_sym
@@ -171,6 +173,37 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
               builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
               builder.new(r)              
             end # if is array
+        end # if datahash_include
+      end # do
+    end # if meta
+    # Check if any of the fields in this hash are enum classes and if so, create a builder for them.
+    meta = @metainfo_enumclasses[class_name]
+    if meta
+      meta.map do | (field_name,class_name) |
+        key = field_name.to_sym
+        if datahash.include?(key)
+          original_value = datahash[key]
+          datahash[key] = 
+          if original_value.is_a?(::Array)
+            original_value.map { |x| pb3_encode(x, class_name) } 
+            original_value
+          else
+            if original_value.is_a?(Fixnum)
+              original_value # integers will be automatically converted into enum
+            else
+              # feature request: support for providing integers as strings or symbols.
+              # not fully tested yet:
+              # begin
+              #   enum_lookup_name = "#{class_name}::#{original_value}"
+              #   enum_lookup_name.split('::').inject(Object) do |mod, class_name|
+              #     mod.const_get(class_name)
+              #   end # do
+              # rescue => e
+              #   @logger.debug("Encoding error 3: could not translate #{original_value} into enum. ${e}")
+              #   raise e
+              # end         
+            end # if is a fixnum    
+          end # if is array
         end # if datahash_include
       end # do
     end # if meta
@@ -200,7 +233,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # 2) convert timestamps and other objects to strings
     datahash = ::Hash[datahash.map{|(k,v)| [k.to_s.dup.gsub(/@/,''), (should_convert_to_string?(v) ? v.to_s : v)] }]
     
-    meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
+    # Check if any of the fields in this hash are protobuf classes and if so, create a builder for them.
+    meta = @metainfo_messageclasses[class_name]
     if meta
       meta.map do | (k,class_name) |
         if datahash.include?(k)
@@ -214,13 +248,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
               original_value.map { |x| pb2_encode(x, class_name) } 
               original_value
             else 
-              r = pb2_encode(original_value, class_name)
-              roto_obj = pb2_create_instance(class_name)
-              proto_obj.new(r)
+              proto_obj = pb2_create_instance(class_name)
+              proto_obj.new(pb2_encode(original_value, class_name))
             end # if is array
         end # if datahash_include
       end # do
     end # if meta
+
     datahash
   end
 
@@ -251,14 +285,17 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       File.readlines(filename).each do |line|
         if ! (line =~ regex_class_name).nil? 
           class_name = $1
-          @pb_metainfo[class_name] = {}
+          @metainfo_messageclasses[class_name] = {}
+          @metainfo_enumclasses[class_name] = {}
         end
         if ! (line =~ regex_pbdefs).nil?
           field_name = $1
           type = $2
-          class_name = $4
+          field_class_name = $4
           if type == "message"
-            @pb_metainfo[class_name][field_name] = class_name
+            @metainfo_messageclasses[class_name][field_name] = field_class_name
+          elsif type == "enum"
+            @metainfo_enumclasses[class_name][field_name] = field_class_name
           end
         end
       end
@@ -291,14 +328,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         end
         if ! (line =~ regex_class_name).nil? && !classname_found # because it might be declared twice in the file
           class_name << $1
-          @pb_metainfo[class_name] = {}
+          @metainfo_messageclasses[class_name] = {}
           classname_found = true
         end
         if ! (line =~ regex_pbdefs).nil?
           type = $1
           field_name = $2
           if type =~ /::/
-            @pb_metainfo[class_name][field_name] = type.gsub!(/^:/,"")
+            @metainfo_messageclasses[class_name][field_name] = type.gsub!(/^:/,"")
             
           end
         end

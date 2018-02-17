@@ -17,12 +17,13 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :father, :message, 10, "Unicorn"
   end
   add_enum "Colour" do
-    value :GREEN, 0
+    value :UNDEFINED, 0
     value :BLUE, 1
     value :PINK, 2
     value :SILVER, 3
     value :GLITTER, 4
     value :WHITE, 5
+    value :GREEN, 6
   end
 end
 

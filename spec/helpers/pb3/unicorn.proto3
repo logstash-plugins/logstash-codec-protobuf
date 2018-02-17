@@ -17,12 +17,13 @@ message Unicorn {
 }
 
 enum Colour {
-    GREEN = 0;
+    
     BLUE = 1;
     PINK = 2;
     SILVER = 3;
     GLITTER = 4;
     WHITE = 5;
+    GREEN = 6;
 }
 
 // TODO test float datatypes aswell as single fields
