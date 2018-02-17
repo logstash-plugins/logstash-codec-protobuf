@@ -102,11 +102,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def encode(event)
     if @protobuf_version_3
-      #TODO implement
+      protobytes = pb3_encode_wrapper(event)
     else
-      protobytes = pb2_encode_wrapper(event)
-      @on_event.call(event, protobytes)
+      protobytes = pb2_encode_wrapper(event)     
     end
+     @on_event.call(event, protobytes)
   end # def encode
 
 
@@ -130,7 +130,20 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     result
   end
 
-
+  def pb3_encode_wrapper(event)
+    begin
+      data = event.to_hash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x} # TODO for nested classes this will have to be done recursively
+      puts "pb3_encode_wrapper data: #{data}"
+      pb_obj = @pb_builder.new(data)
+      @pb_builder.encode(pb_obj)
+    rescue ArgumentError => e
+      @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
+      raise e
+    rescue => e
+      @logger.debug("Couldn't generate protobuf: ${e}")
+      raise e
+    end
+  end
 
   def pb2_encode_wrapper(event)
     begin
@@ -138,10 +151,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       msg = @pb_builder.new(data)
       msg.serialize_to_string
     rescue NoMethodError => e
-      @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
+      @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
       raise e
     rescue => e
-      @logger.debug("Couldn't generate protobuf: ${e}")
+      @logger.debug("Encoding error 1: ${e}")
       raise e
     end
   end
