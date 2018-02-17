@@ -134,7 +134,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def pb2_encode_wrapper(event)
     begin
-      data = pb2_encode(event, @class_name)
+      data = pb2_encode(event.to_hash, @class_name)
       msg = @pb_builder.new(data)
       msg.serialize_to_string
     rescue NoMethodError => e
@@ -148,31 +148,33 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb2_encode(datahash, class_name)
-    if datahash.is_a?(::Hash)
-      # the data cannot be encoded until certain criteria are met:
-      # 1) remove @ signs from keys.
-      # 2) convert timestamps and other objects to strings
-      datahash = ::Hash[datahash.map{|(k,v)| [k.to_s.dup.gsub(/@/,''), (should_convert_to_string?(v) ? v.to_s : v)] }]
-    end
+    next unless datahash.is_a?(::Hash)
 
+    # the data cannot be encoded until certain criteria are met:
+    # 1) remove @ signs from keys.
+    # 2) convert timestamps and other objects to strings
+    datahash = ::Hash[datahash.map{|(k,v)| [k.to_s.dup.gsub(/@/,''), (should_convert_to_string?(v) ? v.to_s : v)] }]
+    
     meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
-    meta.map do | (k,typeinfo) |
-      if datahash.include?(k)
-        original_value = datahash[k] 
-        proto_obj = pb2_create_instance(typeinfo)
-        datahash[k] = 
-          if original_value.is_a?(::Array)
-            # make this field an array/list of protobuf objects
-            # value is a list of hashed complex objects, each of which needs to be protobuffed and
-            # put back into the list.
-            original_value.map { |x| pb2_encode(x, typeinfo) } 
-            original_value
-          else 
-            recursive_fix = pb2_encode(original_value, class_name)
-            proto_obj.new(recursive_fix)
-          end # if is array
-      end # if datahas_include
-    end    
+    if meta
+      meta.map do | (k,typeinfo) |
+        if datahash.include?(k)
+          original_value = datahash[k] 
+          proto_obj = pb2_create_instance(typeinfo)
+          datahash[k] = 
+            if original_value.is_a?(::Array)
+              # make this field an array/list of protobuf objects
+              # value is a list of hashed complex objects, each of which needs to be protobuffed and
+              # put back into the list.
+              original_value.map { |x| pb2_encode(x, typeinfo) } 
+              original_value
+            else 
+              recursive_fix = pb2_encode(original_value, class_name)
+              proto_obj.new(recursive_fix)
+            end # if is array
+        end # if datahash_include
+      end # do
+    end # if meta
     datahash
   end
 
