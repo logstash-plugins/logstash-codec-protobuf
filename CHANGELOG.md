@@ -1,5 +1,5 @@
 ## 1.0.5
-  - Switch protobuf lib to the official google version
+  - Add support for protobuf3
 
 ## 1.0.4
   - Update gemspec summary

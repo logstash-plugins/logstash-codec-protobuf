@@ -1,7 +1,8 @@
 # encoding: utf-8
 require 'logstash/codecs/base'
 require 'logstash/util/charset'
-require 'google/protobuf'
+require 'google/protobuf' # for protobuf3
+require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers, for protobuf2
 
 # This codec converts protobuf encoded messages into logstash events and vice versa. 
 #
@@ -65,69 +66,64 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   #  
   config :include_path, :validate => :array, :required => true
 
-  # TODO documentation
-  config :resolve_enums_to_int, :validate => :boolean, :required => false, :default => true
-
-  # TODO documentation
-  config :auto_translate_enums, :validate => :boolean, :required => false, :default => false
+  # Protocol buffer version switch. Set to false (default) for version 2. Please note that the behaviour for enums varies between the versions. 
+  # For protobuf 2 you will get integer representations for enums, for protobuf 3 you'll get string representations due to a different converter library.
+  # Recommendation: use the translate plugin to restore previous behaviour when upgrading.
+  config :protobuf_version_3, :validate => :boolean, :required => true, :default=>false
 
 
   def register
     @pb_metainfo = {}
-    include_path.each { |path| require_pb_path(path) }
-    @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-    @logger.debug("Protobuf files successfully loaded.")
+    include_path.each { |path| load_protobuf_definition(path) }
+    if @protobuf_version_3      
+      @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
+    else
+      @pb_builder = pb2_create_instance(class_name)
+    end
   end
 
 
   def decode(data)
     begin
-      decoded = @pb_builder.decode(data.to_s)
-      h = deep_to_hash(nil, decoded)
+      if @protobuf_version_3
+        decoded = @pb_builder.decode(data.to_s)
+        h = pb3_deep_to_hash(nil, decoded)
+      else
+        decoded = @pb_builder.parse(data.to_s)
+        h = decoded.to_hash        
+      end
       yield LogStash::Event.new(h) if block_given?
-      
     rescue => e
       @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
-      # raise e
+      raise e
     end
   end # def decode
 
 
   def encode(event)
-    protobytes = generate_protobuf(event)
-    @on_event.call(event, protobytes)
+    if @protobuf_version_3
+      #TODO implement
+    else
+      protobytes = pb2_encode_wrapper(event)
+      @on_event.call(event, protobytes)
+    end
   end # def encode
 
 
   private
-  def deep_to_hash(original_key, input)
-    if input.class.ancestors.include? Google::Protobuf::MessageExts
+  def pb3_deep_to_hash(original_key, input)
+    if input.class.ancestors.include? Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
-      # if @auto_translate_enums TODO
-      #   if @resolve_enums_to_int
-      #     # add a new field with the original value
-      #     # TODO
-      # end
-
       input.to_hash.each {|key, value|
-        result[key] = deep_to_hash(key, value) # the key is required for the class lookup of enums.
-
-      }
-      
+        result[key] = pb3_deep_to_hash(key, value) # the key is required for the class lookup of enums.
+      }      
     elsif input.kind_of?(Array)
       result = []
       input.each {|value|
-          result << deep_to_hash(value)
+          result << pb3_deep_to_hash(value)
       }
-    elsif input.instance_of? Symbol
-      # is an Enum
-      if @resolve_enums_to_int
-        enum_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(original_key).enummodule
-        result = enum_class.resolve(input)
-      else
-        result = input.to_s.sub(':','')
-      end
-
+    elsif input.instance_of? Symbol # is an Enum
+      result = input.to_s.sub(':','')
     else
       result = input
     end
@@ -136,74 +132,65 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
 
-  def generate_protobuf(event)
+  def pb2_encode_wrapper(event)
     begin
-      data = _encode(event, @class_name)
+      data = pb2_encode(event, @class_name)
       msg = @pb_builder.new(data)
       msg.serialize_to_string
-    rescue NoMethodError
+    rescue NoMethodError => e
       @logger.debug("error 2: NoMethodError. Maybe mismatching protobuf definition. Required fields are: " + event.to_hash.keys.join(", "))
+      raise e
     rescue => e
       @logger.debug("Couldn't generate protobuf: ${e}")
+      raise e
     end
   end
 
 
-  def _encode(datahash, class_name)
-    fields = prepare_for_encoding(datahash)    
-    meta = get_complex_types(class_name) # returns a hash with member names and their protobuf class names
+  def pb2_encode(datahash, class_name)
+    if datahash.is_a?(::Hash)
+      # the data cannot be encoded until certain criteria are met:
+      # 1) remove @ signs from keys.
+      # 2) convert timestamps and other objects to strings
+      datahash = ::Hash[datahash.map{|(k,v)| [k.to_s.dup.gsub(/@/,''), (should_convert_to_string?(v) ? v.to_s : v)] }]
+    end
+    
+    meta = @pb_metainfo[class_name] # gets a hash with member names and their protobuf class names
     meta.map do | (k,typeinfo) |
-      if fields.include?(k)
-        original_value = fields[k] 
-        proto_obj = create_object_from_name(typeinfo)
-        fields[k] = 
+      if datahash.include?(k)
+        original_value = datahash[k] 
+        proto_obj = pb2_create_instance(typeinfo)
+        datahash[k] = 
           if original_value.is_a?(::Array)
             # make this field an array/list of protobuf objects
             # value is a list of hashed complex objects, each of which needs to be protobuffed and
             # put back into the list.
-            original_value.map { |x| _encode(x, typeinfo) } 
+            original_value.map { |x| pb2_encode(x, typeinfo) } 
             original_value
           else 
-            recursive_fix = _encode(original_value, class_name)
+            recursive_fix = pb2_encode(original_value, class_name)
             proto_obj.new(recursive_fix)
           end # if is array
-      end
+      end # if datahas_include
     end    
-    fields
+    datahash
   end
 
 
-  def prepare_for_encoding(datahash)
-    # the data cannot be encoded until certain criteria are met:
-    # 1) remove @ signs from keys 
-    # 2) convert timestamps and other objects to strings
-    next unless datahash.is_a?(::Hash)    
-    ::Hash[datahash.map{|(k,v)| [remove_atchar(k.to_s), (convert_to_string?(v) ? v.to_s : v)] }]
-  end
-
-
-  def convert_to_string?(v)
+  def should_convert_to_string?(v)
     !(v.is_a?(Fixnum) || v.is_a?(::Hash) || v.is_a?(::Array) || [true, false].include?(v))
   end
 
-   
-  def remove_atchar(key) # necessary for @timestamp fields and the likes. Protobuf definition doesn't handle @ in field names well.
-    key.dup.gsub(/@/,'')
-  end
-
   
-  def create_object_from_name(name)
+  def pb2_create_instance(name)
     begin
       @logger.debug("Creating instance of " + name)
       name.split('::').inject(Object) { |n,c| n.const_get c }
      end
   end
 
-  def get_complex_types(class_name)
-    @pb_metainfo[class_name]
-  end
 
-  def require_with_metadata_analysis(filename)
+  def pb2_metadata_analyis(filename)
     require filename
     regex_class_name = /\s*class\s*(?<name>.+?)\s+/
     regex_module_name = /\s*module\s*(?<name>.+?)\s+/
@@ -243,17 +230,18 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end    
   end
 
-  def require_pb_path(dir_or_file)
-    f = dir_or_file.end_with? ('.rb')
+  def load_protobuf_definition(filename)
     begin
-      if f
-        @logger.debug("Including protobuf file: " + dir_or_file)
-        require_with_metadata_analysis dir_or_file
+      if filename.end_with? ('.rb')
+        @logger.debug("Including protobuf file: " + filename)
+        require filename
+        if @protobuf_version_3
+          # todo read enum metadata
+        else
+          pb2_metadata_analyis(filename)
+        end
       else 
-        Dir[ dir_or_file + '/*.rb'].each { |file|
-          @logger.debug("Including protobuf path: " + dir_or_file + "/" + file)
-          require_with_metadata_analysis file 
-        }
+        @logger.warn("Not a ruby file: " + filename)
       end
     end
   end
