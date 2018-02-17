@@ -10,6 +10,7 @@ message Unicorn {
     repeated Colour favourite_colours = 4;
     repeated int32 favourite_numbers = 5;
     bool is_pegasus = 6;
+    string @timestamp = 7;
 }
 
 enum Colour {
