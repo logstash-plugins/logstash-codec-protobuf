@@ -70,6 +70,37 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
+
+    #### Test case 3: decode ProbeResult ####################################################################################################################
+    let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => ['spec/helpers/pb3/ProbeResult_pb.rb'], "protobuf_version_3" => true)  }
+    before do
+        plugin_3.register      
+    end
+
+    it "should return an event from protobuf encoded data with nested classes" do
+    
+
+      probe_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("ProbeResult").msgclass
+      ping_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PingIPv4Result").msgclass
+
+      ping_result_data = {:status=> PingIPv4Result::Status::ERROR, 
+        :latency => 50, :ip => "8.8.8.8", :probe_ip => "127.0.0.1", :geolocation => "New York City" }
+      ping_result_object = ping_result_class.new(ping_result_data)
+
+      probe_result_data = {:UUID => '12345678901233456789', :TaskPingIPv4Result => ping_result_object}   
+      probe_result_object = probe_result_class.new(probe_result_data)
+      bin = probe_result_class.encode(probe_result_object)
+      plugin_3.decode(bin) do |event|
+        expect(event.get("UUID") ).to eq(probe_result_data[:UUID] )
+        expect(event.get("TaskPingIPv4Result")["status"] ).to eq("ERROR")
+        expect(event.get("TaskPingIPv4Result")["latency"] ).to eq(ping_result_data[:latency] )
+        expect(event.get("TaskPingIPv4Result")["ip"] ).to eq(ping_result_data[:ip] )
+        expect(event.get("TaskPingIPv4Result")["probe_ip"] ).to eq(ping_result_data[:probe_ip] )
+        expect(event.get("TaskPingIPv4Result")["geolocation"] ).to eq(ping_result_data[:geolocation] )
+      end
+    end # it
+
+
   end # context #decodePB3
 
 
