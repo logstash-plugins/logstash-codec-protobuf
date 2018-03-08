@@ -8,7 +8,7 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 #
 # Requires the protobuf definitions as ruby files. You can create those using the [ruby-protoc compiler](https://github.com/codekitchen/ruby-protocol-buffers).
 # 
-# The following shows a usage example for decoding events from a kafka stream:
+# The following shows a usage example for decoding protobuf 2 encoded events from a kafka stream:
 # [source,ruby]
 # kafka 
 # {
@@ -21,21 +21,39 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 #  }
 # }
 #
+# Same example for protobuf 3:
+# [source,ruby]
+# kafka 
+# {
+#  zk_connect => "127.0.0.1"
+#  topic_id => "your_topic_goes_here"
+#  codec => protobuf 
+#  {
+#    class_name => "Animal.Unicorn"
+#    include_path => ['/path/to/protobuf/definitions/UnicornProtobuf_pb.rb']
+#    protobuf_version_3 => true
+#  }
+# }
+#
 
 class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config_name 'protobuf'
 
   # Name of the class to decode.
-  # If your protobuf definition contains modules, prepend them to the class name with double colons like so:
+  # If your protobuf 2 definition contains modules, prepend them to the class name with double colons like so:
   # [source,ruby]
-  # class_name => "Foods::Dairy::Cheese"
+  # class_name => "Animal::Horse::Unicorn"
   # 
   # This corresponds to a protobuf definition starting as follows:
   # [source,ruby]
-  # module Foods
-  #    module Dairy
-  #        class Cheese
+  # module Animal
+  #    module Horse
+  #        class Unicorn
   #            # here are your field definitions.
+  #
+  # For protobuf 3 separate the modules with single dots.
+  # [source,ruby]
+  # class_name => "Animal.Horse.Unicorn"
   # 
   # If your class references other definitions: you only have to add the main class here.
   config :class_name, :validate => :string, :required => true
@@ -44,19 +62,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # When using more than one file, make sure to arrange the files in reverse order of dependency so that each class is loaded before it is 
   # refered to by another.
   # 
-  # Example: a class _Cheese_ referencing another protobuf class _Milk_
+  # Example: a class _Unicorn_ referencing another protobuf class _Horse_
   # [source,ruby]
-  # module Foods
-  #   module Dairy
-  #         class Cheese
-  #            set_fully_qualified_name "Foods.Dairy.Cheese"
-  #            optional ::Foods::Cheese::Milk, :milk, 1
+  # module Animal
+  #   module Horse
+  #         class Unicorn
+  #            set_fully_qualified_name "Animal.Horse.Unicorn"
+  #            optional ::Animal::Unicorn::Horse, :Horse, 1
   #            optional :int64, :unique_id, 2
   #            # here be more field definitions
   #
   # would be configured as
   # [source,ruby]
-  # include_path => ['/path/to/protobuf/definitions/Milk.pb.rb','/path/to/protobuf/definitions/Cheese.pb.rb']
+  # include_path => ['/path/to/protobuf/definitions/Horse.pb.rb','/path/to/protobuf/definitions/Unicorn.pb.rb']
   #
   # When using the codec in an output plugin: 
   # * make sure to include all the desired fields in the protobuf definition, including timestamp. 
