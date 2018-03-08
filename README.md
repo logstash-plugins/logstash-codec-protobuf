@@ -30,7 +30,7 @@ Here's an example for a kafka input with protobuf 2:
 	  codec => protobuf 
 	  {
 	    class_name => "Animals::Unicorn"
-	    include_path => ['/my/path/to/compiled/protobuf/definitions/Animal.pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf.pb.rb']
+	    include_path => ['/path/to/protobuf/definitions/Animal.pb.rb', '/path/to/protobuf/definitions/UnicornProtobuf.pb.rb']
 	  }
 	}
 
@@ -43,7 +43,7 @@ Example for protobuf 3:
 	  codec => protobuf 
 	  {
       class_name => "Animals.Unicorn"
-	    include_path => ['/my/path/to/compiled/protobuf/definitions/Animal_pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf_pb.rb']
+	    include_path => ['/path/to/protobuf/definitions/Animal_pb.rb', '/path/to/protobuf/definitions/UnicornProtobuf_pb.rb']
 	    protobuf_version_3 => true
 	  }
 	}	 
