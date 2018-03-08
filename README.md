@@ -50,7 +50,7 @@ Example for protobuf 3:
 
 ### Class loading order
 
-Imagine you have the following protobuf version 2 relationship: class Unicorn lives in namespace Animal::Horse and uses another class Milk. 
+Imagine you have the following protobuf version 2 relationship: class Unicorn lives in namespace Animal::Horse and uses another class Wings. 
 
 	module Animal
   		module Horse
