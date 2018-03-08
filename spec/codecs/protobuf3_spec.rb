@@ -87,7 +87,7 @@ describe LogStash::Codecs::Protobuf do
         :latency => 50, :ip => "8.8.8.8", :probe_ip => "127.0.0.1", :geolocation => "New York City" }
       ping_result_object = ping_result_class.new(ping_result_data)
 
-      probe_result_data = {:UUID => '12345678901233456789', :TaskPingIPv4Result => ping_result_object}   
+      probe_result_data = {:UUID => '12345678901233456789', :TaskPingIPv4Result => ping_result_object}
       probe_result_object = probe_result_class.new(probe_result_data)
       bin = probe_result_class.encode(probe_result_object)
       plugin_3.decode(bin) do |event|
