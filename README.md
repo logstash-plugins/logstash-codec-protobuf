@@ -89,7 +89,7 @@ If you include more than one definition class, consider the order of inclusion. 
 
 #### no protobuf output
 
-Maybe your protobuf definition does not fullfill the requirements and needs additional fields. Run logstash with the --debug flag and grep for "error 2".
+Maybe your protobuf definition does not fullfill the requirements and needs additional fields. Run logstash with the --debug flag and search for error messages.
 
 ### Protobuf 3
 
