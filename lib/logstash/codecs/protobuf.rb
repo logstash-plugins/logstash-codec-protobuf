@@ -160,7 +160,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       pb_obj = @pb_builder.new(data)
       @pb_builder.encode(pb_obj)
     rescue ArgumentError => e
-      @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
+      @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include an @.")
       raise e
     rescue => e
       @logger.debug("Couldn't generate protobuf: ${e}")
