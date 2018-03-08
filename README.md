@@ -25,27 +25,27 @@ Here's an example for a kafka input with protobuf 2:
 
 	kafka 
 	{
-		zk_connect => "127.0.0.1"
-		topic_id => "unicorns_protobuffed"
-		codec => protobuf 
-		{
-			class_name => "Animals::Unicorn"
-			include_path => ['/my/path/to/compiled/protobuf/definitions/Animal.pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf.pb.rb']
-		}
+	  zk_connect => "127.0.0.1"
+	  topic_id => "unicorns_protobuffed"
+	  codec => protobuf 
+	  {
+	    class_name => "Animals::Unicorn"
+	    include_path => ['/my/path/to/compiled/protobuf/definitions/Animal.pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf.pb.rb']
+	  }
 	}
 
 Example for protobuf 3:
 
 	kafka 
 	{
-		zk_connect => "127.0.0.1"
-		topic_id => "unicorns_protobuffed"
-		codec => protobuf 
-		{
-			class_name => "Animals.Unicorn"
-			include_path => ['/my/path/to/compiled/protobuf/definitions/Animal_pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf_pb.rb']
-			protobuf_version_3 => true
-		}
+	  zk_connect => "127.0.0.1"
+	  topic_id => "unicorns_protobuffed"
+	  codec => protobuf 
+	  {
+      class_name => "Animals.Unicorn"
+	    include_path => ['/my/path/to/compiled/protobuf/definitions/Animal_pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf_pb.rb']
+	    protobuf_version_3 => true
+	  }
 	}	 
 
 ### Class loading order
@@ -53,12 +53,12 @@ Example for protobuf 3:
 Imagine you have the following protobuf version 2 relationship: class Unicorn lives in namespace Animal::Horse and uses another class Wings. 
 
 	module Animal
-  		module Horse
-    		class Unicorn
-    			set_fully_qualified_name "Animal.Horse.Unicorn"
-			    optional ::Animal::Bodypart::Wings, :wings, 1
-			    optional :string, :name, 2
-			    # here be more field definitions
+		module Horse
+  		class Unicorn
+  			set_fully_qualified_name "Animal.Horse.Unicorn"
+		    optional ::Animal::Bodypart::Wings, :wings, 1
+		    optional :string, :name, 2
+		    # here be more field definitions
 
 Make sure to put the referenced wings class first in the include_path:
 

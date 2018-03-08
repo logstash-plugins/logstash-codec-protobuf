@@ -47,9 +47,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # This corresponds to a protobuf definition starting as follows:
   # [source,ruby]
   # module Animal
-  #    module Horse
-  #        class Unicorn
-  #            # here are your field definitions.
+  #   module Horse
+  #     class Unicorn
+  #       # here are your field definitions.
   #
   # For protobuf 3 separate the modules with single dots.
   # [source,ruby]
@@ -66,11 +66,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # [source,ruby]
   # module Animal
   #   module Horse
-  #         class Unicorn
-  #            set_fully_qualified_name "Animal.Horse.Unicorn"
-  #            optional ::Animal::Bodypart::Wings, :wings, 1
-  #            optional :string, :name, 2
-  #            # here be more field definitions
+  #     class Unicorn
+  #       set_fully_qualified_name "Animal.Horse.Unicorn"
+  #       optional ::Animal::Bodypart::Wings, :wings, 1
+  #       optional :string, :name, 2
+  #       # here be more field definitions
   #
   # would be configured as
   # [source,ruby]
