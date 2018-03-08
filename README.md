@@ -30,7 +30,7 @@ Here's an example for a kafka input with protobuf 2:
 	  codec => protobuf 
 	  {
 	    class_name => "Animals::Unicorn"
-	    include_path => ['/path/to/protobuf/definitions/Animal.pb.rb', '/path/to/protobuf/definitions/UnicornProtobuf.pb.rb']
+	    include_path => ['/path/to/pb_definitions/Animal.pb.rb', '/path/to/pb_definitions/Unicorn.pb.rb']
 	  }
 	}
 
@@ -43,7 +43,7 @@ Example for protobuf 3:
 	  codec => protobuf 
 	  {
       class_name => "Animals.Unicorn"
-	    include_path => ['/path/to/protobuf/definitions/Animal_pb.rb', '/path/to/protobuf/definitions/UnicornProtobuf_pb.rb']
+	    include_path => ['/path/to/pb_definitions/Animal_pb.rb', '/path/to/pb_definitions/Unicorn_pb.rb']
 	    protobuf_version_3 => true
 	  }
 	}	 
@@ -62,7 +62,7 @@ Imagine you have the following protobuf version 2 relationship: class Unicorn li
 
 Make sure to put the referenced wings class first in the include_path:
 
-	include_path => ['/path/to/protobuf/definitions/wings.pb.rb','/path/to/protobuf/definitions/unicorn.pb.rb']
+	include_path => ['/path/to/pb_definitions/wings.pb.rb','/path/to/pb_definitions/unicorn.pb.rb']
 
 Set the class name to the parent class:
 	
