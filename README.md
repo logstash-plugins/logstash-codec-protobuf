@@ -53,12 +53,12 @@ Example for protobuf 3:
 Imagine you have the following protobuf version 2 relationship: class Unicorn lives in namespace Animal::Horse and uses another class Wings. 
 
 	module Animal
-		module Horse
-  		class Unicorn
-  			set_fully_qualified_name "Animal.Horse.Unicorn"
-		    optional ::Animal::Bodypart::Wings, :wings, 1
-		    optional :string, :name, 2
-		    # here be more field definitions
+	  module Horse
+	    class Unicorn
+	      set_fully_qualified_name "Animal.Horse.Unicorn"
+	      optional ::Animal::Bodypart::Wings, :wings, 1
+	      optional :string, :name, 2
+	      # here be more field definitions
 
 Make sure to put the referenced wings class first in the include_path:
 
