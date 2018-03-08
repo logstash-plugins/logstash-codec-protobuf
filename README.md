@@ -50,23 +50,27 @@ Example for protobuf 3:
 
 ### Class loading order
 
-Imagine you have the following protobuf version 2 relationship: class Cheese lives in namespace Foods::Dairy and uses another class Milk. 
+Imagine you have the following protobuf version 2 relationship: class Unicorn lives in namespace Animal::Horse and uses another class Milk. 
 
-	module Foods
-  		module Dairy
-    		class Cheese
-    			set_fully_qualified_name "Foods.Dairy.Cheese"
-			    optional ::Foods::Cheese::Milk, :milk, 1
-			    optional :int64, :unique_id, 2
+	module Animal
+  		module Horse
+    		class Unicorn
+    			set_fully_qualified_name "Animal.Horse.Unicorn"
+			    optional ::Animal::Bodypart::Wings, :wings, 1
+			    optional :string, :name, 2
 			    # here be more field definitions
 
-Make sure to put the referenced Milk class first in the include_path:
+Make sure to put the referenced wings class first in the include_path:
 
-	include_path => ['/path/to/protobuf/definitions/Milk.pb.rb','/path/to/protobuf/definitions/Cheese.pb.rb']
+	include_path => ['/path/to/protobuf/definitions/wings.pb.rb','/path/to/protobuf/definitions/unicorn.pb.rb']
 
 Set the class name to the parent class:
 	
-	class_name => "Foods::Dairy::Cheese"
+	class_name => "Animal::Horse::Unicorn"
+
+for protobuf 2. For protobuf 3 use 
+
+  class_name => "Animal.Horse.Unicorn"
 
 ## Usage example: encoder
 

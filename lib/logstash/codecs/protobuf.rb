@@ -62,19 +62,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # When using more than one file, make sure to arrange the files in reverse order of dependency so that each class is loaded before it is 
   # refered to by another.
   # 
-  # Example: a class _Unicorn_ referencing another protobuf class _Horse_
+  # Example: a class _Unicorn_ referencing another protobuf class _Wings_
   # [source,ruby]
   # module Animal
   #   module Horse
   #         class Unicorn
   #            set_fully_qualified_name "Animal.Horse.Unicorn"
-  #            optional ::Animal::Unicorn::Horse, :Horse, 1
-  #            optional :int64, :unique_id, 2
+  #            optional ::Animal::Bodypart::Wings, :wings, 1
+  #            optional :string, :name, 2
   #            # here be more field definitions
   #
   # would be configured as
   # [source,ruby]
-  # include_path => ['/path/to/protobuf/definitions/Horse.pb.rb','/path/to/protobuf/definitions/Unicorn.pb.rb']
+  # include_path => ['/path/to/protobuf/definitions/Wings.pb.rb','/path/to/protobuf/definitions/Unicorn.pb.rb']
   #
   # When using the codec in an output plugin: 
   # * make sure to include all the desired fields in the protobuf definition, including timestamp. 
