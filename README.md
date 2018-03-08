@@ -24,29 +24,29 @@ Use this as a codec in any logstash input. Just provide the name of the class th
 Here's an example for a kafka input with protobuf 2:
 
 	kafka 
+	{
+		zk_connect => "127.0.0.1"
+		topic_id => "unicorns_protobuffed"
+		codec => protobuf 
 		{
-			zk_connect => "127.0.0.1"
-			topic_id => "unicorns_protobuffed"
-			codec => protobuf 
-			{
-				class_name => "Animals::Unicorn"
-				include_path => ['/my/path/to/compiled/protobuf/definitions/Animal.pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf.pb.rb']
-			}
+			class_name => "Animals::Unicorn"
+			include_path => ['/my/path/to/compiled/protobuf/definitions/Animal.pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf.pb.rb']
 		}
+	}
 
 Example for protobuf 3:
 
 	kafka 
+	{
+		zk_connect => "127.0.0.1"
+		topic_id => "unicorns_protobuffed"
+		codec => protobuf 
 		{
-			zk_connect => "127.0.0.1"
-			topic_id => "unicorns_protobuffed"
-			codec => protobuf 
-			{
-				class_name => "Animals.Unicorn"
-				include_path => ['/my/path/to/compiled/protobuf/definitions/Animal_pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf_pb.rb']
-				protobuf_version_3 => true
-			}
-		}	 
+			class_name => "Animals.Unicorn"
+			include_path => ['/my/path/to/compiled/protobuf/definitions/Animal_pb.rb', '/my/path/to/compiled/protobuf/definitions/UnicornProtobuf_pb.rb']
+			protobuf_version_3 => true
+		}
+	}	 
 
 ### Class loading order
 
@@ -70,7 +70,7 @@ Set the class name to the parent class:
 
 for protobuf 2. For protobuf 3 use 
 
-  class_name => "Animal.Horse.Unicorn"
+	class_name => "Animal.Horse.Unicorn"
 
 
 ## Usage example: encoder
