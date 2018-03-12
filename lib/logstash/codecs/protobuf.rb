@@ -170,7 +170,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb3_encode(datahash, class_name)
-    next unless datahash.is_a?(::Hash)
+    if not datahash.is_a?(::Hash)
+      return datahash
+    end
 
     # Preparation: the data cannot be encoded until certain criteria are met:
     # 1) remove @ signs from keys.
@@ -249,7 +251,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb2_encode(datahash, class_name)
-    next unless datahash.is_a?(::Hash)
+    if not datahash.is_a?(::Hash)
+      return datahash
+    end
 
     # Preparation: the data cannot be encoded until certain criteria are met:
     # 1) remove @ signs from keys.
@@ -262,7 +266,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       meta.map do | (k,class_name) |
         if datahash.include?(k)
           original_value = datahash[k] 
-          p
           datahash[k] = 
             if original_value.is_a?(::Array)
               # make this field an array/list of protobuf objects
@@ -272,7 +275,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
               original_value
             else 
               proto_obj = pb2_create_instance(class_name)
-              proto_obj.new(pb2_encode(original_value, class_name))
+              proto_obj.new(pb2_encode(original_value, class_name)) # this line is reached in the colourtest for an enum. Enums should not be instantiated. Should enums even be in the messageclasses? I dont think so! TODO bug
             end # if is array
         end # if datahash_include
       end # do
@@ -335,6 +338,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def pb2_metadata_analyis(filename)
     regex_class_name = /\s*class\s*(?<name>.+?)\s+/
     regex_module_name = /\s*module\s*(?<name>.+?)\s+/
+    regex_enum_name = /\s*include ..ProtocolBuffers..Enum\s*/
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<type>.+),(\s*):(?<name>\w+),(\s*)(?<position>\d+)/
     # now we also need to find out which class it contains and the protobuf definitions in it.
     # We'll unfortunately need that later so that we can create nested objects.
@@ -343,27 +347,40 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       type = ""
       field_name = ""
       classname_found = false
+      is_enum = false
+
       File.readlines(filename).each do |line|
+        if ! (line =~ regex_enum_name).nil?
+          is_enum = true
+        end
+
         if ! (line =~ regex_module_name).nil? && !classname_found # because it might be declared twice in the file
           class_name << $1 
           class_name << "::"
-    
+          is_enum = false # reset when next class starts
         end
         if ! (line =~ regex_class_name).nil? && !classname_found # because it might be declared twice in the file
           class_name << $1
           @metainfo_messageclasses[class_name] = {}
+          @metainfo_enumclasses[class_name] = {}
           classname_found = true
         end
         if ! (line =~ regex_pbdefs).nil?
           type = $1
           field_name = $2
           if type =~ /::/
-            @metainfo_messageclasses[class_name][field_name] = type.gsub!(/^:/,"")
-            
+            if is_enum
+              @metainfo_enumclasses[class_name][field_name] = type.gsub!(/^:/,"")
+            else
+              @metainfo_messageclasses[class_name][field_name] = type.gsub!(/^:/,"")
+            end
           end
         end
       end
-    rescue Exception => e
+    rescue LoadError => e
+      raise ArgumentError.new("Could not load file: " + filename + ". Please try to use absolute pathes. Current working dir: " + Dir.pwd + ", loadpath: " + $LOAD_PATH.join(" "))
+    rescue => e
+      puts "Could not load file: " + filename + ". Please try to use absolute pathes. Current working dir: " + Dir.pwd + ", loadpath: " + $LOAD_PATH.join(" ") # TODO remove
       @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
       raise e
     end
@@ -376,17 +393,20 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def load_protobuf_definition(filename)
     begin
       if filename.end_with? ('.rb')
-        @logger.debug("Including protobuf file: " + filename)
         if (Pathname.new filename).absolute?
           require filename
         else
           require_relative filename # needed for the test cases
-        end 
+          r = File.expand_path(File.dirname(__FILE__))
+          filename = File.join(r, filename) # make the path absolute 
+        end
+       
         if @protobuf_version_3
           pb3_metadata_analyis(filename)
         else
           pb2_metadata_analyis(filename)
         end
+        
       else 
         @logger.warn("Not a ruby file: " + filename)
       end

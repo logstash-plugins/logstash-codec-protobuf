@@ -10,14 +10,15 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 
 describe LogStash::Codecs::Protobuf do
 
-
+  pb_include_path = "../../../spec/helpers/"
+  # pb_include_path = "."
 
   context "#decodePB2" do
 
-    puts "This script is running from " + Dir.pwd
+    
 
     #### Test case 1: Decode simple protobuf bytes for unicorn ####################################################################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Unicorn", "include_path" => ['helpers/pb2/unicorn.pb.rb'])  }
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Unicorn", "include_path" => [pb_include_path + '/pb2/unicorn.pb.rb'])  }
     before do
         plugin_unicorn.register      
     end
@@ -42,7 +43,7 @@ describe LogStash::Codecs::Protobuf do
 
   
  
-    let(:plugin_human) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => ['helpers/pb2/human.pb.rb'])  }
+    let(:plugin_human) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => [pb_include_path + '/pb2/human.pb.rb'])  }
     before do
         plugin_human.register      
     end
@@ -84,7 +85,7 @@ describe LogStash::Codecs::Protobuf do
 
   
  
-    let(:plugin_col) { LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => ['helpers/pb2/ColourTestcase.pb.rb'])  }
+    let(:plugin_col) { LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => [pb_include_path + '/pb2/ColourTestcase.pb.rb'])  }
     before do
         plugin_col.register      
     end
@@ -113,7 +114,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#encodePB2-a" do
     subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "Animal::UnicornEvent", "include_path" => ['helpers/pb2/unicorn_event.pb.rb']) 
+      next LogStash::Codecs::Protobuf.new("class_name" => "Animal::UnicornEvent", "include_path" => [pb_include_path + '/pb2/unicorn_event.pb.rb']) 
     end
 
     event = LogStash::Event.new("colour" => "pink", "horn_length" => 12, "last_seen" => 1410081999, "has_wings" => true)    
@@ -141,7 +142,7 @@ describe LogStash::Codecs::Protobuf do
   
   context "#encodePB2-b" do
     subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => ['helpers/pb2/human.pb.rb']) 
+      next LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => [pb_include_path + '/pb2/human.pb.rb']) 
     end
 
     event = LogStash::Event.new("first_name" => "Jimmy", "middle_names" => ["Bob", "James"], "last_name" => "Doe" \
@@ -181,7 +182,7 @@ describe LogStash::Codecs::Protobuf do
  
   context "#encodePB2-c" do
     subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => ['helpers/pb2/ColourTestcase.pb.rb'])
+      next LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => [pb_include_path + '/pb2/ColourTestcase.pb.rb'])
     end
 
     require_relative '../helpers/pb2/ColourTestcase.pb.rb' # otherwise we cant use the colour enums in the next line
