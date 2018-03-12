@@ -377,7 +377,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     begin
       if filename.end_with? ('.rb')
         @logger.debug("Including protobuf file: " + filename)
-        require filename
+        if (Pathname.new filename).absolute?
+          require filename
+        else
+          require_relative filename # needed for the test cases
+        end 
         if @protobuf_version_3
           pb3_metadata_analyis(filename)
         else
