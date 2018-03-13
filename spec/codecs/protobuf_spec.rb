@@ -11,7 +11,7 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 describe LogStash::Codecs::Protobuf do
 
   pb_include_path = "../../../spec/helpers/"
-  # pb_include_path = "."
+
 
   context "#decodePB2" do
 
