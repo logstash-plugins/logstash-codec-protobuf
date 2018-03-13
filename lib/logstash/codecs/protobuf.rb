@@ -87,7 +87,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Protocol buffer version switch. Set to false (default) for version 2. Please note that the behaviour for enums varies between the versions. 
   # For protobuf 2 you will get integer representations for enums, for protobuf 3 you'll get string representations due to a different converter library.
   # Recommendation: use the translate plugin to restore previous behaviour when upgrading.
-  config :protobuf_version_3, :validate => :boolean, :required => true, :default=>false
+  config :protobuf_version, :validate => :number, :default=>2
 
 
   def register
@@ -95,7 +95,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @metainfo_enumclasses = {}
     @metainfo_pb2_enumlist = []
     include_path.each { |path| load_protobuf_definition(path) }
-    if @protobuf_version_3      
+    if @protobuf_version == 3   
       @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
     else
       @pb_builder = pb2_create_instance(class_name)
@@ -105,7 +105,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def decode(data)
     begin
-      if @protobuf_version_3
+      if @protobuf_version == 3
         decoded = @pb_builder.decode(data.to_s)
         h = pb3_deep_to_hash(decoded)
       else
@@ -121,7 +121,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def encode(event)
-    if @protobuf_version_3
+    if @protobuf_version == 3
       protobytes = pb3_encode_wrapper(event)
     else
       protobytes = pb2_encode_wrapper(event)     
@@ -424,7 +424,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           filename = File.join(r, filename) # make the path absolute 
         end
        
-        if @protobuf_version_3
+        if @protobuf_version == 3
           pb3_metadata_analyis(filename)
         else
           pb2_metadata_analyis(filename)
