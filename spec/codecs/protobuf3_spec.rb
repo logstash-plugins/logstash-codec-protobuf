@@ -10,12 +10,13 @@ require 'google/protobuf' # for protobuf3
 
 describe LogStash::Codecs::Protobuf do
 
+  pb_include_path = "../../../spec/helpers/"
 
   context "#decodePB3" do
 
 
     #### Test case 1: Decode simple protobuf ####################################################################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => ['spec/helpers/pb3/unicorn_pb.rb'], "protobuf_version_3" => true)  }
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version_3" => true)  }
     before do
         plugin_unicorn.register      
     end
@@ -44,7 +45,7 @@ describe LogStash::Codecs::Protobuf do
 
 
     #### Test case 2: decode nested protobuf ####################################################################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => ['spec/helpers/pb3/unicorn_pb.rb'], "protobuf_version_3" => true)  }
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version_3" => true)  }
     before do
         plugin_unicorn.register      
     end
@@ -72,7 +73,7 @@ describe LogStash::Codecs::Protobuf do
 
 
     #### Test case 3: decode ProbeResult ####################################################################################################################
-    let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => ['spec/helpers/pb3/ProbeResult_pb.rb'], "protobuf_version_3" => true)  }
+    let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version_3" => true)  }
     before do
         plugin_3.register      
     end
@@ -108,11 +109,11 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 3: encode simple protobuf ####################################################################################################################
 
-    definitions_file = 'spec/helpers/pb3/unicorn_pb.rb'
-    require definitions_file
+
+    require_relative '../helpers/pb3/unicorn_pb.rb'
 
     subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [definitions_file], "protobuf_version_3" => true)
+      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version_3" => true)
     end
 
     event3 = LogStash::Event.new("name" => "Pinkie", "age" => 18, "is_pegasus" => false, "favourite_numbers" => [1,2,3], "fur_colour" => Colour::PINK, "favourite_colours" => [1,5]      )
@@ -140,11 +141,10 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 4: encode nested protobuf ####################################################################################################################
 
-    definitions_file = 'spec/helpers/pb3/unicorn_pb.rb'
-    require definitions_file
+    require_relative '../helpers/pb3/unicorn_pb.rb'
 
     subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [definitions_file], "protobuf_version_3" => true)
+      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version_3" => true)
     end
 
     event4 = LogStash::Event.new("name" => "Horst", "age" => 23, "is_pegasus" => true, "mother" => \
