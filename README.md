@@ -16,7 +16,7 @@ include_path  (required): an array of strings with filenames where logstash can 
 
 class_name    (required): the name of the protobuf class that is to be decoded or encoded. For protobuf 2 separate the modules with ::. For protobuf 3 use single dots. See examples below.
 
-protobuf_version_3 (optional): set this to true if you want to use protobuf 3 definitions. 
+protobuf_version (optional): set this to 3 if you want to use protobuf 3 definitions. Defaults to 2.
 
 ## Usage example: decoder
 
