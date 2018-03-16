@@ -44,7 +44,7 @@ Example for protobuf 3:
 	  {
       class_name => "Animals.Unicorn"
 	    include_path => ['/path/to/pb_definitions/Animal_pb.rb', '/path/to/pb_definitions/Unicorn_pb.rb']
-	    protobuf_version_3 => true
+	    protobuf_version => 3
 	  }
 	}	 
 

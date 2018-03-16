@@ -87,7 +87,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Protocol buffer version switch. Defaults to version 2. Please note that the behaviour for enums varies between the versions. 
   # For protobuf 2 you will get integer representations for enums, for protobuf 3 you'll get string representations due to a different converter library.
   # Recommendation: use the translate plugin to restore previous behaviour when upgrading.
-  config :protobuf_version, :validate => :number, :default => 2, :required => true
+  config :protobuf_version, :validate => [2,3], :default => 2, :required => true
 
 
   def register
