@@ -130,22 +130,23 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def pb3_deep_to_hash(input)
-    if input.class.ancestors.include? Google::Protobuf::MessageExts # it's a protobuf class
+    case input
+    when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
       input.to_hash.each {|key, value|
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }      
-    elsif input.kind_of?(Array)
+    when ::Array
       result = []
       input.each {|value|
           result << pb3_deep_to_hash(value)
       }
-    elsif input.kind_of?(::Hash)
+    when ::Hash
       result = {}
       input.each {|key, value|
           result[key] = pb3_deep_to_hash(value)
       }
-    elsif input.instance_of? Symbol # is an Enum
+    when Symbol # is an Enum
       result = input.to_s.sub(':','')
     else
       result = input
@@ -198,6 +199,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           end # if datahash_include
         end # do
       end # if meta
+
       # Check if any of the fields in this hash are enum classes and if so, create a builder for them.
       meta = @metainfo_enumclasses[class_name]
       if meta
@@ -205,27 +207,25 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           key = field_name.to_sym
           if datahash.include?(key)
             original_value = datahash[key]
-            datahash[key] = 
-            if original_value.is_a?(::Array)
+            datahash[key] = case original_value
+            when ::Array
               original_value.map { |x| pb3_encode(x, class_name) } 
               original_value
-            else
-              if original_value.is_a?(Fixnum)
-                original_value # integers will be automatically converted into enum
-              else
-                # feature request: support for providing integers as strings or symbols.
-                # not fully tested yet:
-                # begin
-                #   enum_lookup_name = "#{class_name}::#{original_value}"
-                #   enum_lookup_name.split('::').inject(Object) do |mod, class_name|
-                #     mod.const_get(class_name)
-                #   end # do
-                # rescue => e
-                #   @logger.debug("Encoding error 3: could not translate #{original_value} into enum. ${e}")
-                #   raise e
-                # end         
-              end # if is a fixnum    
-            end # if is array
+            when Fixnum
+              original_value # integers will be automatically converted into enum
+            # else
+              # feature request: support for providing integers as strings or symbols.
+              # not fully tested yet:
+              # begin
+              #   enum_lookup_name = "#{class_name}::#{original_value}"
+              #   enum_lookup_name.split('::').inject(Object) do |mod, class_name|
+              #     mod.const_get(class_name)
+              #   end # do
+              # rescue => e
+              #   @logger.debug("Encoding error 3: could not translate #{original_value} into enum. ${e}")
+              #   raise e
+              # end         
+            end 
           end # if datahash_include
         end # do
       end # if meta
@@ -247,8 +247,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
 
-  def pb2_encode(datahash, class_name)
-    
+  def pb2_encode(datahash, class_name)    
     if datahash.is_a?(::Hash)
       # Preparation: the data cannot be encoded until certain criteria are met:
       # 1) remove @ signs from keys.
@@ -257,12 +256,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       
       # Check if any of the fields in this hash are protobuf classes and if so, create a builder for them.
       meta = @metainfo_messageclasses[class_name]
-      
       if meta
         meta.map do | (k,c) |
           if datahash.include?(k)
-            original_value = datahash[k]
-            
+            original_value = datahash[k]            
             datahash[k] = 
               if original_value.is_a?(::Array)
                 # make this field an array/list of protobuf objects
@@ -376,7 +373,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       @logger.warn("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
     end
-
   rescue LoadError => e
     raise ArgumentError.new("Could not load file: " + filename + ". Please try to use absolute pathes. Current working dir: " + Dir.pwd + ", loadpath: " + $LOAD_PATH.join(" "))
   rescue => e
