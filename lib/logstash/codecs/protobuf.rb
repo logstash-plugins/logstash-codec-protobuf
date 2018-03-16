@@ -31,7 +31,7 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 #  {
 #    class_name => "Animal.Unicorn"
 #    include_path => ['/path/to/protobuf/definitions/UnicornProtobuf_pb.rb']
-#    protobuf_version_3 => true
+#    protobuf_version => 3
 #  }
 # }
 #
@@ -104,19 +104,17 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def decode(data)
-    begin
-      if @protobuf_version == 3
-        decoded = @pb_builder.decode(data.to_s)
-        h = pb3_deep_to_hash(decoded)
-      else
-        decoded = @pb_builder.parse(data.to_s)
-        h = decoded.to_hash        
-      end
-      yield LogStash::Event.new(h) if block_given?
-    rescue => e
-      @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
-      raise e
+    if @protobuf_version == 3
+      decoded = @pb_builder.decode(data.to_s)
+      h = pb3_deep_to_hash(decoded)
+    else
+      decoded = @pb_builder.parse(data.to_s)
+      h = decoded.to_hash        
     end
+    yield LogStash::Event.new(h) if block_given?
+  rescue => e
+    @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
+    raise e
   end # def decode
 
 
@@ -156,17 +154,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def pb3_encode_wrapper(event)
-    begin
-      data = pb3_encode(event.to_hash, @class_name)
-      pb_obj = @pb_builder.new(data)
-      @pb_builder.encode(pb_obj)
-    rescue ArgumentError => e
-      @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include an @.")
-      raise e
-    rescue => e
-      @logger.debug("Couldn't generate protobuf: ${e}")
-      raise e
-    end
+    data = pb3_encode(event.to_hash, @class_name)
+    pb_obj = @pb_builder.new(data)
+    @pb_builder.encode(pb_obj)
+  rescue ArgumentError => e
+    @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include an @.")
+    raise e
+  rescue => e
+    @logger.debug("Couldn't generate protobuf: ${e}")
+    raise e
   end
 
 
@@ -238,18 +234,17 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def pb2_encode_wrapper(event)
-    begin
-      data = pb2_encode(event.to_hash, @class_name)
-      msg = @pb_builder.new(data)
-      msg.serialize_to_string
-    rescue NoMethodError => e
-      @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
-      raise e
-    rescue => e
-      @logger.debug("Encoding error 1: ${e}")
-      raise e
-    end
+    data = pb2_encode(event.to_hash, @class_name)
+    msg = @pb_builder.new(data)
+    msg.serialize_to_string
+  rescue NoMethodError => e
+    @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
+    raise e
+  rescue => e
+    @logger.debug("Encoding error 1: ${e}")
+    raise e
   end
+
 
 
   def pb2_encode(datahash, class_name)
@@ -293,55 +288,44 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   
   def pb2_create_instance(name)
-    begin
-      @logger.debug("Creating instance of " + name)
-      name.split('::').inject(Object) { |n,c| n.const_get c }
-     end
+    @logger.debug("Creating instance of " + name)
+    name.split('::').inject(Object) { |n,c| n.const_get c }
   end
 
 
   def pb3_metadata_analyis(filename)
     regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/ # TODO optimize both regexes for speed (negative lookahead)
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<name>.+),(\s*):(?<type>\w+),(\s*)(?<position>\d+)(, \"(?<enum_class>.*?)\")?/
-    # Example 
-    # optional :father, :message, 10, "Unicorn"
-    # repeated :favourite_numbers, :int32, 5
-    begin 
-      class_name = ""
-      type = ""
-      field_name = ""
-      File.readlines(filename).each do |line|
-        if ! (line =~ regex_class_name).nil? 
-          class_name = $1
-          @metainfo_messageclasses[class_name] = {}
-          @metainfo_enumclasses[class_name] = {}
+    class_name = ""
+    type = ""
+    field_name = ""
+    File.readlines(filename).each do |line|
+      if ! (line =~ regex_class_name).nil? 
+        class_name = $1
+        @metainfo_messageclasses[class_name] = {}
+        @metainfo_enumclasses[class_name] = {}
+      end # if
+      if ! (line =~ regex_pbdefs).nil?
+        field_name = $1
+        type = $2
+        field_class_name = $4
+        if type == "message"
+          @metainfo_messageclasses[class_name][field_name] = field_class_name
+        elsif type == "enum"
+          @metainfo_enumclasses[class_name][field_name] = field_class_name
         end
-        if ! (line =~ regex_pbdefs).nil?
-          field_name = $1
-          type = $2
-          field_class_name = $4
-          if type == "message"
-            @metainfo_messageclasses[class_name][field_name] = field_class_name
-          elsif type == "enum"
-            @metainfo_enumclasses[class_name][field_name] = field_class_name
-          end
-        end
-      end
-    rescue Exception => e
-      @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
-      raise e
-    end
+      end # if
+    end # readlines
     if class_name.nil?
       @logger.warn("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
-    end    
+    end
+  rescue Exception => e
+    @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+    raise e
   end
+      
 
-  # def is_enum?(class_name)
-  #   b = @metainfo_enumclasses.key? class_name
-  #   
-  #   b
-  # end
 
   def pb2_metadata_analyis(filename)
     regex_class_start = /\s*set_fully_qualified_name \"(?<name>.+)\".*?/
@@ -349,90 +333,77 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<type>.+),(\s*):(?<name>\w+),(\s*)(?<position>\d+)/
     # now we also need to find out which class it contains and the protobuf definitions in it.
     # We'll unfortunately need that later so that we can create nested objects.
-    begin 
-      class_name = ""
-      type = ""
-      field_name = ""
-      is_enum_class = false
 
-      
+    class_name = ""
+    type = ""
+    field_name = ""
+    is_enum_class = false
 
-      File.readlines(filename).each do |line|
-        
-        if ! (line =~ regex_enum_name).nil?
-          is_enum_class= true
-          
+    File.readlines(filename).each do |line|
+      if ! (line =~ regex_enum_name).nil?
+        is_enum_class= true
+       end
+
+      if ! (line =~ regex_class_start).nil?
+        class_name = $1.gsub('.',"::").split('::').map {|word| word.capitalize}.join('::')
+        if is_enum_class
+          @metainfo_pb2_enumlist << class_name.downcase
         end
-
-        if ! (line =~ regex_class_start).nil?
-          class_name = $1.gsub('.',"::").split('::').map {|word| word.capitalize}.join('::')
-          if is_enum_class
-            @metainfo_pb2_enumlist << class_name.downcase
-            
-          else
-            
-          end
-          is_enum_class= false # reset when next class starts
+        is_enum_class= false # reset when next class starts
+      end
+      if ! (line =~ regex_pbdefs).nil?
+        type = $1
+        field_name = $2
+        if type =~ /::/
+          clean_type = type.gsub(/^:/,"")
+          e = @metainfo_pb2_enumlist.include? clean_type.downcase
           
-        end
-
-
-        if ! (line =~ regex_pbdefs).nil?
-          type = $1
-          field_name = $2
-          if type =~ /::/
-            clean_type = type.gsub(/^:/,"")
-            e = @metainfo_pb2_enumlist.include? clean_type.downcase
-            
-            if e
-              
-              if not @metainfo_enumclasses.key? class_name
-                @metainfo_enumclasses[class_name] = {}
-              end
-              @metainfo_enumclasses[class_name][field_name] = clean_type
-            else
-              
-              if not @metainfo_messageclasses.key? class_name
-                @metainfo_messageclasses[class_name] = {}
-              end
-              @metainfo_messageclasses[class_name][field_name] = clean_type
+          if e
+            if not @metainfo_enumclasses.key? class_name
+              @metainfo_enumclasses[class_name] = {}
             end
+            @metainfo_enumclasses[class_name][field_name] = clean_type
+          else            
+            if not @metainfo_messageclasses.key? class_name
+              @metainfo_messageclasses[class_name] = {}
+            end
+            @metainfo_messageclasses[class_name][field_name] = clean_type
           end
         end
       end
-    rescue LoadError => e
-      raise ArgumentError.new("Could not load file: " + filename + ". Please try to use absolute pathes. Current working dir: " + Dir.pwd + ", loadpath: " + $LOAD_PATH.join(" "))
-    rescue => e
-      
-      @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
-      raise e
     end
     if class_name.nil?
       @logger.warn("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
-    end    
+    end
+
+  rescue LoadError => e
+    raise ArgumentError.new("Could not load file: " + filename + ". Please try to use absolute pathes. Current working dir: " + Dir.pwd + ", loadpath: " + $LOAD_PATH.join(" "))
+  rescue => e
+    
+    @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+    raise e
   end
+ 
 
   def load_protobuf_definition(filename)
-    begin
-      if filename.end_with? ('.rb')
-        if (Pathname.new filename).absolute?
-          require filename
-        else
-          require_relative filename # needed for the test cases
-          r = File.expand_path(File.dirname(__FILE__))
-          filename = File.join(r, filename) # make the path absolute 
-        end
-       
-        if @protobuf_version == 3
-          pb3_metadata_analyis(filename)
-        else
-          pb2_metadata_analyis(filename)
-        end
-        
-      else 
-        @logger.warn("Not a ruby file: " + filename)
+    if filename.end_with? ('.rb')
+      if (Pathname.new filename).absolute?
+        require filename
+      else
+        require_relative filename # needed for the test cases
+        r = File.expand_path(File.dirname(__FILE__))
+        filename = File.join(r, filename) # make the path absolute 
       end
+     
+      if @protobuf_version == 3
+        pb3_metadata_analyis(filename)
+      else
+        pb2_metadata_analyis(filename)
+      end
+      
+    else 
+      @logger.warn("Not a ruby file: " + filename)
     end
   end
 
