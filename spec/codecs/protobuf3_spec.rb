@@ -101,6 +101,75 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
+    #### Test case 4: decode PBDNSMessage ####################################################################################################################
+    let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage", "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
+    before do
+        plugin_4.register      
+    end
+
+    it "should return an event from protobuf encoded data with nested classes" do
+    
+
+      pbdns_message_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage").msgclass
+      dns_question_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSQuestion").msgclass
+      dns_response_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSResponse").msgclass
+      dns_rr_class       = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSResponse.DNSRR").msgclass
+
+      dns_question_data = {:qName => "Foo", :qType => 12345, :qClass => 67890 }
+      dns_question_object = dns_question_class.new(dns_question_data)
+
+      dns_response_data = {:rcode => 12345, :appliedPolicy => "baz", :tags => ["a","b","c"], 
+        :queryTimeSec => 123, :queryTimeUsec => 456, 
+        :appliedPolicyType => PBDNSMessage::PolicyType::NSIP}
+      dns_response_data[:rrs] = [
+        dns_rr_class.new(:name => "abc", :type => 9000, :class => 8000, :ttl => 20, :rdata => "300"),
+        dns_rr_class.new(:name => "def", :type => 19000, :class => 18000, :ttl => 120, :rdata => "1300")
+        ]
+      dns_response_object = dns_response_class.new(dns_response_data)
+
+      pbdns_message_data = {
+        # :UUID => '12345678901233456789', :TaskPingIPv4Result => ping_result_object
+        :type => PBDNSMessage::Type::DNSIncomingResponseType,
+        :messageId => "15",
+        :serverIdentity => "16",
+        :socketFamily => PBDNSMessage::SocketFamily::INET6,
+        :socketProtocol => PBDNSMessage::SocketProtocol::TCP,
+        :from => "17",
+        :to => "18",
+        :inBytes => 70000,
+        :timeSec => 80000,
+        :timeUsec => 90000,
+        :id => 20000,
+        :question => dns_question_object,
+        :response => dns_response_object,
+        :originalRequestorSubnet => "19",
+        :requestorId => "Bar",
+        :initialRequestId => "20",
+        :deviceId => "21",
+        }
+      pbdns_message_object = pbdns_message_class.new(pbdns_message_data)
+      bin = pbdns_message_class.encode(pbdns_message_object)
+      plugin_4.decode(bin) do |event|
+        
+        ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId','initialRequestId','deviceIdf'].each { |n|
+          s = n.to_sym
+          # puts "#{event.get(n)} versus #{pbdns_message_data[s]}"
+          expect(event.get(n)).to eq(pbdns_message_data[s] )
+          }
+
+        # enum test: 
+        expect(event.get("type") ).to eq("DNSIncomingResponseType" )
+        expect(event.get("socketFamily") ).to eq("INET6" )
+        expect(event.get("socketProtocol") ).to eq("TCP" )
+
+        expect(event.get("question")["qName"] ).to eq(dns_question_data[:qName] )
+        expect(event.get("question")["qType"] ).to eq(dns_question_data[:qType] )
+        expect(event.get("question")["qClass"] ).to eq(dns_question_data[:qClass] )
+
+        # TODO add expectations for dns_response_object
+      end
+    end # it
+
 
   end # context #decodePB3
 
