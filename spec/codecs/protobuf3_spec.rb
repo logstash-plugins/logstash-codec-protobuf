@@ -121,10 +121,13 @@ describe LogStash::Codecs::Protobuf do
       dns_response_data = {:rcode => 12345, :appliedPolicy => "baz", :tags => ["a","b","c"], 
         :queryTimeSec => 123, :queryTimeUsec => 456, 
         :appliedPolicyType => PBDNSMessage::PolicyType::NSIP}
-      dns_response_data[:rrs] = [
-        dns_rr_class.new(:name => "abc", :type => 9000, :class => 8000, :ttl => 20, :rdata => "300"),
-        dns_rr_class.new(:name => "def", :type => 19000, :class => 18000, :ttl => 120, :rdata => "1300")
-        ]
+
+      dns_rr_data = [
+        {:name => "abc", :type => 9000, :class => 8000, :ttl => 20, :rdata => "300"},
+        {:name => "def", :type => 19000, :class => 18000, :ttl => 120, :rdata => "1300"}
+      ]
+
+      dns_response_data[:rrs] = dns_rr_data.map { | d | d = dns_rr_class.new(d) }
       dns_response_object = dns_response_class.new(dns_response_data)
 
       pbdns_message_data = {
@@ -151,11 +154,8 @@ describe LogStash::Codecs::Protobuf do
       bin = pbdns_message_class.encode(pbdns_message_object)
       plugin_4.decode(bin) do |event|
         
-        ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId','initialRequestId','deviceIdf'].each { |n|
-          s = n.to_sym
-          # puts "#{event.get(n)} versus #{pbdns_message_data[s]}"
-          expect(event.get(n)).to eq(pbdns_message_data[s] )
-          }
+        ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId' ,'initialRequestId','deviceIdf'].each { |n|  
+          expect(event.get(n)).to eq(pbdns_message_data[n.to_sym] ) }
 
         # enum test: 
         expect(event.get("type") ).to eq("DNSIncomingResponseType" )
@@ -165,8 +165,15 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("question")["qName"] ).to eq(dns_question_data[:qName] )
         expect(event.get("question")["qType"] ).to eq(dns_question_data[:qType] )
         expect(event.get("question")["qClass"] ).to eq(dns_question_data[:qClass] )
+    
+        ['rcode', 'appliedPolicy','tags','queryTimeSec','queryTimeUsec'].each { |n|   expect(event.get('response')[n]).to eq(dns_response_data[n.to_sym] )   }
+        expect(event.get("response")['appliedPolicyType'] ).to eq("NSIP" )
 
-        # TODO add expectations for dns_response_object
+        dns_rr_data.each_with_index { | data, index | 
+          found = event.get("response")['rrs'][index]
+          ['name', 'type','class','ttl','rdata'].each { |n|   expect(found[n]).to eq(data[n.to_sym])   }
+        }
+
       end
     end # it
 
