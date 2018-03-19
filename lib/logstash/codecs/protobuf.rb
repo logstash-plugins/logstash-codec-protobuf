@@ -159,10 +159,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     pb_obj = @pb_builder.new(data)
     @pb_builder.encode(pb_obj)
   rescue ArgumentError => e
-    @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include an @.")
+    k = event.to_hash.keys.join(", ")
+    @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: #{k} and the timestamp field name must not include an @.")
     raise e
   rescue => e
-    @logger.debug("Couldn't generate protobuf: ${e}")
+    @logger.debug("Couldn't generate protobuf: #{e.inspect}")
     raise e
   end
 
@@ -222,7 +223,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
               #     mod.const_get(class_name)
               #   end # do
               # rescue => e
-              #   @logger.debug("Encoding error 3: could not translate #{original_value} into enum. ${e}")
+              #   @logger.debug("Encoding error 3: could not translate #{original_value} into enum. #{e}")
               #   raise e
               # end         
             end 
@@ -241,7 +242,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.debug("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
     raise e
   rescue => e
-    @logger.debug("Encoding error 1: ${e}")
+    @logger.debug("Encoding error 1: #{e.inspect}")
     raise e
   end
 
