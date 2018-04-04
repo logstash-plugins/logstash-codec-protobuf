@@ -177,6 +177,21 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
+#### Test case 5: decode test case for github issue 17 ####################################################################################################################
+    let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
+    before do
+        plugin_5.register      
+    end
+
+    it "should return an event from protobuf encoded data with nested classes" do
+      integertest_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("com.foo.bar.IntegerTestMessage").msgclass
+      integertest_object = integertest_class.new({:response_time => 500})
+      bin = integertest_class.encode(integertest_object)
+      plugin_5.decode(bin) do |event|
+        expect(event.get("response_time") ).to eq(500)
+      end
+    end # it
+
 
   end # context #decodePB3
 
