@@ -89,6 +89,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Recommendation: use the translate plugin to restore previous behaviour when upgrading.
   config :protobuf_version, :validate => [2,3], :default => 2, :required => true
 
+  # To tolerate faulty messages that cannot be decoded, set this to false. Otherwise the pipeline will stop upon encountering a non decipherable message.
+  config :stop_on_error, :validate => :boolean, :default => false, :required => false
 
   def register
     @metainfo_messageclasses = {}
@@ -114,7 +116,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     yield LogStash::Event.new(h) if block_given?
   rescue => e
     @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
-    raise e
+    if stop_on_error
+      raise e
+    end
   end # def decode
 
 
