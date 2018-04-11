@@ -12,7 +12,7 @@ describe LogStash::Codecs::Protobuf do
 
   pb_include_path = "../../../spec/helpers/"
 
-  context "#decodePB3" do
+  context "#test1_pb3" do
 
 
     #### Test case 1: Decode simple protobuf ####################################################################################################################
@@ -39,7 +39,9 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("is_pegasus") ).to eq(data[:is_pegasus] )
       end
     end # it
+  end # context 
 
+  context "#test2_pb3" do
 
 
 
@@ -70,7 +72,9 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
+  end # context 
 
+  context "#test3_pb3" do
 
     #### Test case 3: decode ProbeResult ####################################################################################################################
     let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
@@ -100,6 +104,9 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("TaskPingIPv4Result")["geolocation"] ).to eq(ping_result_data[:geolocation] )
       end
     end # it
+  end # context 
+
+  context "#test4_pb3" do
 
     #### Test case 4: decode PBDNSMessage ####################################################################################################################
     let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage", "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
@@ -177,6 +184,10 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
+  end # context 
+
+  context "#test5_pb3" do
+
 #### Test case 5: decode test case for github issue 17 ####################################################################################################################
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
     before do
@@ -193,7 +204,7 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
-  end # context #decodePB3
+  end # context
 
 
   context "#encodePB3-a" do

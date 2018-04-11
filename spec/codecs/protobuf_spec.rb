@@ -13,7 +13,7 @@ describe LogStash::Codecs::Protobuf do
   pb_include_path = "../../../spec/helpers/"
 
 
-  context "#decodePB2" do
+  context "#test1" do
 
     
 
@@ -36,11 +36,11 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-
+  end
 
     #### Test case 2: Decode complex protobuf bytes for human #####################################################################################################################
 
-
+  context "#test2" do
   
  
     let(:plugin_human) { LogStash::Codecs::Protobuf.new("class_name" => "Animal::Human", "include_path" => [pb_include_path + '/pb2/human.pb.rb'])  }
@@ -74,15 +74,12 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("[father][middle_names]") ).to eq(data_f[:middle_names] )
       end
     end # it
-
-
-
-
+  end # context
 
 
     #### Test case 3: Decoder test for enums #####################################################################################################################
 
-
+  context "#test3" do
   
  
     let(:plugin_col) { LogStash::Codecs::Protobuf.new("class_name" => "ColourProtoTest", "include_path" => [pb_include_path + '/pb2/ColourTestcase.pb.rb'])  }
@@ -104,7 +101,7 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
-  end # context decodePB2
+  end # context test3
 
 
 
