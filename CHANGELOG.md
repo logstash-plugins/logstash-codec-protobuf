@@ -1,3 +1,6 @@
+## 1.1.0
+  - Add support for protobuf3
+
 ## 1.0.4
   - Update gemspec summary
 

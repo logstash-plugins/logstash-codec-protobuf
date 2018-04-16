@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+// Compile: protoc --ruby_out=. spec/helpers/*proto3
+
+message Unicorn {
+
+    string name = 1;
+    uint32 age = 2;
+    Colour fur_colour = 3;
+    repeated Colour favourite_colours = 4;
+    repeated int32 favourite_numbers = 5;
+    bool is_pegasus = 6;
+    string timestamp = 7; # Logstash adds this to the event, needed for encoder test
+    string version = 8; # Logstash adds this to the event, needed for encoder test
+    Unicorn mother = 9;
+    Unicorn father = 10;
+}
+
+enum Colour {
+    
+    BLUE = 1;
+    PINK = 2;
+    SILVER = 3;
+    GLITTER = 4;
+    WHITE = 5;
+    GREEN = 6;
+}
+
+// TODO test float datatypes aswell as single fields
+// TODO test class reference to other file as single field
+// TODO test a class as list
