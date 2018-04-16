@@ -113,11 +113,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       decoded = @pb_builder.parse(data.to_s)
       h = decoded.to_hash        
     end
-    yield LogStash::Event.new(h) if block_given?
+    yield LogStash::Event.new(h)
   rescue => e
     @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
     if stop_on_error
       raise e
+    else # keep original message so that the user can debug it.
+      yield LogStash::Event.new("message" => data, "tags" => ["_protobufdecodefailure"])
     end
   end # def decode
 

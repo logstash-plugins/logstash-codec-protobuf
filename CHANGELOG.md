@@ -1,3 +1,6 @@
+## 1.1.1
+  - Keep original message in case of decoding error
+
 ## 1.1.0
   - Add support for protobuf3
 
