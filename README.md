@@ -46,7 +46,11 @@ Example for protobuf 3:
 	    include_path => ['/path/to/pb_definitions/Animal_pb.rb', '/path/to/pb_definitions/Unicorn_pb.rb']
 	    protobuf_version => 3
 	  }
-	}	 
+	}
+
+Hint: you probably also want to set the deserializer class to 
+	value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+	
 
 ### Class loading order
 
