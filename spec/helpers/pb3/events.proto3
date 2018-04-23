@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+message Event {
+   string id = 1;
+   string msg = 2;
+}
+
+message Events {
+    repeated Event events = 1;
+}

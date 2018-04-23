@@ -188,7 +188,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#test5_pb3" do
 
-#### Test case 5: decode test case for github issue 17 ####################################################################################################################
+    #### Test case 5: decode test case for github issue 17 ####################################################################################################################
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
     before do
         plugin_5.register      
@@ -200,6 +200,34 @@ describe LogStash::Codecs::Protobuf do
       bin = integertest_class.encode(integertest_object)
       plugin_5.decode(bin) do |event|
         expect(event.get("response_time") ).to eq(500)
+      end
+    end # it
+
+
+  end # context
+
+  context "#test6_pb3" do
+
+    #### Test case 6: decode test case for github issue 17 ####################################################################################################################
+    let(:plugin_6) { LogStash::Codecs::Protobuf.new("class_name" => "RepeatedEvents", "include_path" => [pb_include_path + '/pb3/events_pb.rb'], "protobuf_version" => 3)  }
+    before do
+        plugin_6.register      
+    end
+
+    it "should return an event from protobuf encoded data with repeated top level objects" do
+      event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass
+      events_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass
+      test_a = event_class.new({:id => "1", :msg => "a"})
+      test_b = event_class.new({:id => "2", :msg => "b"})
+      test_c = event_class.new({:id => "3", :msg => "c"})
+      event_obj = events_class.new({:repeated_events=>[test_a, test_b, test_c]})
+      bin = events_class.encode(event_obj)
+      plugin_6.decode(bin) do |event|
+        expect(event.get("repeated_events").size ).to eq(3)
+        expect(event.get("repeated_events")[0]["id"] ).to eq("1")
+        expect(event.get("repeated_events")[2]["id"] ).to eq("3")
+        expect(event.get("repeated_events")[0]["msg"] ).to eq("a")
+        expect(event.get("repeated_events")[2]["msg"] ).to eq("c")
       end
     end # it
 
