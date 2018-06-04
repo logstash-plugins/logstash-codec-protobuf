@@ -215,7 +215,8 @@ describe LogStash::Codecs::Protobuf do
     end
 
     it "should return an event from protobuf encoded data with repeated top level objects" do
-      event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass
+      event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass # TODO this shouldnt be necessary because the classes are already 
+      # specified at the end of the _pb.rb files
       events_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass
       test_a = event_class.new({:id => "1", :msg => "a"})
       test_b = event_class.new({:id => "2", :msg => "b"})
