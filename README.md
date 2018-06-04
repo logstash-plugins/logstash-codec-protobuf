@@ -42,11 +42,18 @@ Example for protobuf 3:
 	  topic_id => "unicorns_protobuffed"
 	  codec => protobuf 
 	  {
-      class_name => "Animals.Unicorn"
+	    class_name => "Animals.Unicorn"
 	    include_path => ['/path/to/pb_definitions/Animal_pb.rb', '/path/to/pb_definitions/Unicorn_pb.rb']
 	    protobuf_version => 3
 	  }
-	}	 
+	}
+
+For version 3 class names check the bottom of the generated protobuf ruby file. It contains lines like this:
+
+    Animals.Unicorn = Google::Protobuf::DescriptorPool.generated_pool.lookup("Animals.Unicorn").msgclass
+
+Use the parameter for the lookup call as the class_name for the codec config.
+
 
 ### Class loading order
 
