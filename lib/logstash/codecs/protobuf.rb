@@ -14,6 +14,8 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 # {
 #  zk_connect => "127.0.0.1"
 #  topic_id => "your_topic_goes_here"
+#  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+#  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
 #  codec => protobuf 
 #  {
 #    class_name => "Animal::Unicorn"
@@ -27,6 +29,8 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 # {
 #  zk_connect => "127.0.0.1"
 #  topic_id => "your_topic_goes_here"
+#  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+#  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
 #  codec => protobuf 
 #  {
 #    class_name => "Animal.Unicorn"
@@ -35,6 +39,7 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 #  }
 # }
 #
+# Specifically for the kafka input: please set the deserializer classes as shown above.
 
 class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config_name 'protobuf'
@@ -54,9 +59,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # For protobuf 3 separate the modules with single dots.
   # [source,ruby]
   # class_name => "Animal.Horse.Unicorn"
+  # Check the bottom of the generated protobuf ruby file. It contains lines like this:
+  # [source,ruby]
+  # Animals.Unicorn = Google::Protobuf::DescriptorPool.generated_pool.lookup("Animals.Unicorn").msgclass
+  # Use the parameter for the lookup call as the class_name for the codec config.
   # 
   # If your class references other definitions: you only have to add the main class here.
-  config :class_name, :validate => :string, :required => true
+   config :class_name, :validate => :string, :required => true
 
   # List of absolute pathes to files with protobuf definitions. 
   # When using more than one file, make sure to arrange the files in reverse order of dependency so that each class is loaded before it is 

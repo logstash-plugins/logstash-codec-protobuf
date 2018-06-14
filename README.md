@@ -27,6 +27,9 @@ Here's an example for a kafka input with protobuf 2:
 	{
 	  zk_connect => "127.0.0.1"
 	  topic_id => "unicorns_protobuffed"
+	  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+	  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+
 	  codec => protobuf 
 	  {
 	    class_name => "Animals::Unicorn"
@@ -40,13 +43,23 @@ Example for protobuf 3:
 	{
 	  zk_connect => "127.0.0.1"
 	  topic_id => "unicorns_protobuffed"
+	  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+	  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
 	  codec => protobuf 
 	  {
-      class_name => "Animals.Unicorn"
+	    class_name => "Animals.Unicorn"
 	    include_path => ['/path/to/pb_definitions/Animal_pb.rb', '/path/to/pb_definitions/Unicorn_pb.rb']
 	    protobuf_version => 3
 	  }
-	}	 
+	}
+
+For version 3 class names check the bottom of the generated protobuf ruby file. It contains lines like this:
+
+    Animals.Unicorn = Google::Protobuf::DescriptorPool.generated_pool.lookup("Animals.Unicorn").msgclass
+
+Use the parameter for the lookup call as the class_name for the codec config.
+
+If you're using a kafka input please also set the deserializer classes as shown above.
 
 ### Class loading order
 
