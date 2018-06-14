@@ -14,6 +14,8 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 # {
 #  zk_connect => "127.0.0.1"
 #  topic_id => "your_topic_goes_here"
+#  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+#  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
 #  codec => protobuf 
 #  {
 #    class_name => "Animal::Unicorn"
@@ -27,6 +29,8 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 # {
 #  zk_connect => "127.0.0.1"
 #  topic_id => "your_topic_goes_here"
+#  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+#  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
 #  codec => protobuf 
 #  {
 #    class_name => "Animal.Unicorn"
@@ -35,6 +39,7 @@ require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffer
 #  }
 # }
 #
+# Specifically for the kafka input: please set the deserializer classes as shown above.
 
 class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   config_name 'protobuf'
