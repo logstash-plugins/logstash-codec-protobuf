@@ -101,6 +101,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # To tolerate faulty messages that cannot be decoded, set this to false. Otherwise the pipeline will stop upon encountering a non decipherable message.
   config :stop_on_error, :validate => :boolean, :default => false, :required => false
 
+  # Camelize variables names
+  config :camelize, :validate => :boolean, :default => false, :required => false
+
   def register
     @metainfo_messageclasses = {}
     @metainfo_enumclasses = {}
@@ -147,6 +150,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
       input.to_hash.each {|key, value|
+        if @camelize
+          key = camelize(key.to_s)
+        end
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }      
     when ::Array
@@ -157,7 +163,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     when ::Hash
       result = {}
       input.each {|key, value|
-          result[key] = pb3_deep_to_hash(value)
+        if @camelize
+          key = camelize(key.to_s)
+        end
+        result[key] = pb3_deep_to_hash(value)
       }
     when Symbol # is an Enum
       result = input.to_s.sub(':','')
@@ -165,6 +174,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       result = input
     end
     result
+  end
+
+  def camelize(string, uppercase_first_letter = false)
+    if uppercase_first_letter
+      string = string.sub(/^[a-z\d]*/) { $&.capitalize }
+    else
+      string = string.sub(/^(?:(?=\b|[A-Z_])|\w)/) { $&.downcase }
+    end
+    string.gsub(/(?:_|(\/))([a-z\d]*)/) { "#{$1}#{$2.capitalize}" }.gsub('/', '::')
   end
 
   def pb3_encode_wrapper(event)
