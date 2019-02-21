@@ -1,0 +1,8 @@
+syntax = "proto2";
+
+// Compile: ruby-protoc spec/helpers/*proto
+package grpc;
+
+message Header {
+    optional string protocol = 1;
+}

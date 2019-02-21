@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+// Compile: ruby-protoc spec/helpers/*proto
+
+package Logging;
+
+import "header/header.proto";
+
+message Event {
+    optional string name = 1;
+    optional grpc.Header header = 2;
+}
