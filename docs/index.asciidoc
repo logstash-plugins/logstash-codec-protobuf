@@ -74,6 +74,7 @@ When using the codec in an output plugin:
 |Setting |Input type|Required
 | <<plugins-{type}s-{plugin}-class_name>> |<<string,string>>|Yes
 | <<plugins-{type}s-{plugin}-include_path>> |<<array,array>>|Yes
+| <<plugins-{type}s-{plugin}-protobuf_version>> |<<number,number>>|Yes
 |=======================================================================
 
 &nbsp;
