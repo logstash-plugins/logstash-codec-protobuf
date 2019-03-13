@@ -30,7 +30,6 @@ The following shows a usage example (protobuf v2) for decoding events from a kaf
 [source,ruby]
 kafka 
 {
- zk_connect => "..."
  topic_id => "..."
  key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
  value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
@@ -45,7 +44,6 @@ Usage example for protobuf v3:
 [source,ruby]
 kafka 
 {
-  zk_connect => "..."
   topic_id => "..."
   key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
   value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"

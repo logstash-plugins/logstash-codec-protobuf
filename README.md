@@ -26,7 +26,6 @@ Here's an example for a kafka input with protobuf 2:
 ```ruby
 kafka 
 {
-  zk_connect => "..."
   topic_id => "..."
   key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
   value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
@@ -44,7 +43,6 @@ Example for protobuf 3:
 ```ruby
 kafka 
 {
-  zk_connect => "..."
   topic_id => "..."
   key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
   value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
