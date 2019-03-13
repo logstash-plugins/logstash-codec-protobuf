@@ -23,8 +23,8 @@ include::{include_path}/plugin_header.asciidoc[]
 This codec converts protobuf encoded messages into logstash events and vice versa. It supports the protobuf versions 2 and 3.
 
 The plugin requires the protobuf definitions to be compiled to ruby files. +
-For protobuf 2 use the ruby-protoc compiler[https://github.com/codekitchen/ruby-protocol-buffers]. +
-For protobuf 3 use the official google protobuf compiler[https://developers.google.com/protocol-buffers/docs/reference/ruby-generated].
+For protobuf 2 use the https://github.com/codekitchen/ruby-protocol-buffers[ruby-protoc compiler]. +
+For protobuf 3 use the https://developers.google.com/protocol-buffers/docs/reference/ruby-generated[official google protobuf compiler].
 
 The following shows a usage example (protobuf v2) for decoding events from a kafka stream:
 [source,ruby]
