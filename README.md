@@ -4,17 +4,17 @@ This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to pa
 
 # Prerequisites and Installation
  
-* prepare your ruby versions of the protobuf definitions  
+* prepare your Ruby versions of the Protobuf definitions:
   * For protobuf 2 use the [ruby-protoc compiler](https://github.com/codekitchen/ruby-protocol-buffers).  
   * For protobuf 3 use the [official google protobuf compiler](https://developers.google.com/protocol-buffers/docs/reference/ruby-generated).
 * install the codec: `bin/logstash-plugin install logstash-codec-protobuf`
-* use the codec in your logstash config file. See details below.
+* use the codec in your Logstash config file. See details below.
 
 ## Configuration
 
-`include_path`  (required): an array of strings with filenames where logstash can find your protobuf definitions. Please provide absolute paths. For directories it will only try to import files ending on .rb
+`include_path`  (required): an array of strings with filenames where logstash can find your protobuf definitions. Requires absolute paths. Please note that protobuf v2 files have the ending .pb.rb whereas files compiled for protobuf v3 end in _pb.rb.
 
-`class_name`    (required): the name of the protobuf class that is to be decoded or encoded. For protobuf 2 separate the modules with ::. For protobuf 3 use single dots. See examples below.
+`class_name`    (required): the name of the protobuf class that is to be decoded or encoded. For protobuf 2 separate the modules with ::. For protobuf 3 use single dots. 
 
 `protobuf_version` (optional): set this to 3 if you want to use protobuf 3 definitions. Defaults to 2.
 
@@ -26,14 +26,14 @@ Here's an example for a kafka input with protobuf 2:
 ```ruby
 kafka 
 {
-  zk_connect => "127.0.0.1"
-  topic_id => "unicorns_protobuffed"
+  zk_connect => "..."
+  topic_id => "..."
   key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
   value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
 
   codec => protobuf 
   {
-    class_name => "Animals::Unicorn"
+    class_name => "Animals::Mammals::Unicorn"
     include_path => ['/path/to/pb_definitions/Animal.pb.rb', '/path/to/pb_definitions/Unicorn.pb.rb']
   }
 }
@@ -44,13 +44,13 @@ Example for protobuf 3:
 ```ruby
 kafka 
 {
-  zk_connect => "127.0.0.1"
-  topic_id => "unicorns_protobuffed"
+  zk_connect => "..."
+  topic_id => "..."
   key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
   value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
   codec => protobuf 
   {
-    class_name => "Animals.Unicorn"
+    class_name => "Animals.Mammals.Unicorn"
     include_path => ['/path/to/pb_definitions/Animal_pb.rb', '/path/to/pb_definitions/Unicorn_pb.rb']
     protobuf_version => 3
   }
@@ -73,12 +73,12 @@ Imagine you have the following protobuf version 2 relationship: class Unicorn li
 
 ```ruby
 module Animal
-  module Horse
+  module Mammal
     class Unicorn
-      set_fully_qualified_name "Animal.Horse.Unicorn"
-      optional ::Animal::Bodypart::Wings, :wings, 1
+      set_fully_qualified_name "Animal.Mammal.Unicorn"
+      optional ::Bodypart::Wings, :wings, 1
       optional :string, :name, 2
-      # here be more field definitions
+      ...
 ```
 
 Make sure to put the referenced wings class first in the include_path:
@@ -90,13 +90,13 @@ include_path => ['/path/to/pb_definitions/wings.pb.rb','/path/to/pb_definitions/
 Set the class name to the parent class:
 
 ```ruby
-class_name => "Animal::Horse::Unicorn"
+class_name => "Animal::Mammal::Unicorn"
 ```
 
 for protobuf 2. For protobuf 3 use 
 
 ```ruby
-class_name => "Animal.Horse.Unicorn"
+class_name => "Animal.Mammal.Unicorn"
 ```
 
 ## Usage example: encoder
