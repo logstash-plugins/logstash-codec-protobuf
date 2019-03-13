@@ -62,8 +62,8 @@ When using the codec in an output plugin:
 
 * make sure to include all the desired fields in the protobuf definition, including timestamp. 
   Remove fields that are not part of the protobuf definition from the event by using the mutate filter.
-* the @ symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field "timestamp" 
-  instead of "@timestamp" in the protobuf file. Logstash event fields will be stripped of the leading @ before conversion.
+* the @ symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field `timestamp`
+  instead of `@timestamp` in the protobuf file. Logstash event fields will be stripped of the leading @ before conversion.
 
 
 [id="plugins-{type}s-{plugin}-options"]
@@ -127,7 +127,7 @@ would be configured as
 [source,ruby]
 include_path => ['/path/to/pb_definitions/wings.pb.rb','/path/to/pb_definitions/unicorn.pb.rb']
 
-Please note that protobuf v2 files have the ending .pb.rb whereas files compiled for protobuf v3 end in _pb.rb.
+Please note that protobuf v2 files have the ending `.pb.rb` whereas files compiled for protobuf v3 end in `_pb.rb`.
 
 [id="plugins-{type}s-{plugin}-protobuf_version"]
 ===== `protobuf_version` 
