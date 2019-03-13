@@ -22,8 +22,8 @@ include::{include_path}/plugin_header.asciidoc[]
 
 This codec converts protobuf encoded messages into logstash events and vice versa. It supports the protobuf versions 2 and 3.
 
-The plugin requires the protobuf definitions to be compiled to ruby files.
-For protobuf 2 use the ruby-protoc compiler[https://github.com/codekitchen/ruby-protocol-buffers].
+The plugin requires the protobuf definitions to be compiled to ruby files. +
+For protobuf 2 use the ruby-protoc compiler[https://github.com/codekitchen/ruby-protocol-buffers]. +
 For protobuf 3 use the official google protobuf compiler[https://developers.google.com/protocol-buffers/docs/reference/ruby-generated].
 
 The following shows a usage example (protobuf v2) for decoding events from a kafka stream:
@@ -56,14 +56,14 @@ kafka
 }
 
 
-The codec can be used in input and output plugins.
-When using the codec in the kafka input plugin please set the deserializer classes as shown above.
+The codec can be used in input and output plugins. +
+When using the codec in the kafka input plugin please set the deserializer classes as shown above. +
 When using the codec in an output plugin:
 
 * make sure to include all the desired fields in the protobuf definition, including timestamp. 
   Remove fields that are not part of the protobuf definition from the event by using the mutate filter.
-* the @ symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field `timestamp`
-  instead of `@timestamp` in the protobuf file. Logstash event fields will be stripped of the leading @ before conversion.
+* the `@` symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field `timestamp`
+  instead of `@timestamp` in the protobuf file. Logstash event fields will be stripped of the leading `@` before conversion.
 
 
 [id="plugins-{type}s-{plugin}-options"]
