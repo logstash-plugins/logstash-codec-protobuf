@@ -12,7 +12,7 @@ This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to pa
 
 ## Configuration
 
-`include_path`  (required): an array of strings with filenames where logstash can find your protobuf definitions. Requires absolute paths. Please note that protobuf v2 files have the ending .pb.rb whereas files compiled for protobuf v3 end in _pb.rb.
+`include_path`  (required): an array of strings with filenames where logstash can find your protobuf definitions. Requires absolute paths. Please note that protobuf v2 files have the ending `.pb.rb` whereas files compiled for protobuf v3 end in `_pb.rb`.
 
 `class_name`    (required): the name of the protobuf class that is to be decoded or encoded. For protobuf 2 separate the modules with ::. For protobuf 3 use single dots. 
 
