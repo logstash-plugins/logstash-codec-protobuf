@@ -57,14 +57,14 @@ kafka
 
 
 The codec can be used in input and output plugins.
-When using the codec in the kafka input plugin:
-* please set the deserializer classes as shown above.
-When using the codec in an output plugin: 
+When using the codec in the kafka input plugin please set the deserializer classes as shown above.
+When using the codec in an output plugin:
+
 * make sure to include all the desired fields in the protobuf definition, including timestamp. 
   Remove fields that are not part of the protobuf definition from the event by using the mutate filter.
 * the @ symbol is currently not supported in field names when loading the protobuf definitions for encoding. Make sure to call the timestamp field "timestamp" 
   instead of "@timestamp" in the protobuf file. Logstash event fields will be stripped of the leading @ before conversion.
- 
+
 
 [id="plugins-{type}s-{plugin}-options"]
 ==== Protobuf Codec Configuration Options
