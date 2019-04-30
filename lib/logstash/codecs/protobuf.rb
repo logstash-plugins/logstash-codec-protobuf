@@ -4,7 +4,24 @@ require 'logstash/util/charset'
 require 'google/protobuf' # for protobuf3
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers, for protobuf2
 
-# This codec converts protobuf encoded messages into logstash events and vice versa. 
+# Monkey-patch the `Google::Protobuf::DescriptorPool` with a mutex for exclusive
+# access.
+#
+# The DescriptorPool instance is not thread-safe when loading protobuf
+# definitions. This can cause unrecoverable errors when registering multiple
+# concurrent pipelines that try to register the same dependency. The
+# DescriptorPool instance is global to the JVM and shared among all pipelines.
+class << Google::Protobuf::DescriptorPool
+  def with_lock
+    if !@mutex
+      @mutex = Mutex.new
+    end
+
+    return @mutex
+  end
+end
+
+# This codec converts protobuf encoded messages into logstash events and vice versa.
 #
 # Requires the protobuf definitions as ruby files. You can create those using the [ruby-protoc compiler](https://github.com/codekitchen/ruby-protocol-buffers).
 #
@@ -128,6 +145,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # To tolerate faulty messages that cannot be decoded, set this to false. Otherwise the pipeline will stop upon encountering a non decipherable message.
   config :stop_on_error, :validate => :boolean, :default => false, :required => false
 
+  attr_reader :execution_context
+
+  # id of the pipeline whose events you want to read from.
+  def pipeline_id
+    respond_to?(:execution_context) && !execution_context.nil? ? execution_context.pipeline_id : "main"
+  end
+
   def register
     @metainfo_messageclasses = {}
     @metainfo_enumclasses = {}
@@ -141,27 +165,41 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       raise LogStash::ConfigurationError, "Need to specify `include_path` or `class_file`"
     end
 
+    should_register = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).nil?
+
     unless @protobuf_root_directory.nil? or @protobuf_root_directory.strip.empty?
-      if !$LOAD_PATH.include? @protobuf_root_directory and Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).nil?
+      if !$LOAD_PATH.include? @protobuf_root_directory and should_register
         $LOAD_PATH.unshift(@protobuf_root_directory)
       end
     end
 
     @class_file = "#{@protobuf_root_directory}/#{@class_file}" unless (Pathname.new @class_file).absolute? or @class_file.empty?
-    should_register = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).nil?
 
-    # load from `class_file`
-    load_protobuf_definition(@class_file) if should_register
-    # load from `include_path`
-    include_path.each { |path| load_protobuf_definition(path) } if include_path.length > 0 and should_register
+    # exclusive access while loading protobuf definitions
+    Google::Protobuf::DescriptorPool.with_lock.synchronize do
+      # load from `class_file`
+      load_protobuf_definition(@class_file) if should_register and !@class_file.empty?
+      # load from `include_path`
+      include_path.each { |path| load_protobuf_definition(path) } if include_path.length > 0 and should_register
 
-    if @protobuf_version == 3
-      @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-    else
-      @pb_builder = pb2_create_instance(class_name)
+      if @protobuf_version == 3
+        @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
+      else
+        @pb_builder = pb2_create_instance(class_name)
+      end
     end
   end
 
+  # Pipelines using this plugin cannot be reloaded.
+  # https://github.com/elastic/logstash/pull/6499
+  #
+  # The DescriptorPool instance registers the protobuf classes (and
+  # dependencies) as global objects. This makes it very difficult to reload a
+  # pipeline, because `class_name` and all of its dependencies are already
+  # registered.
+  def reloadable?
+    return false
+  end
 
   def decode(data)
     if @protobuf_version == 3
@@ -452,7 +490,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         begin
           require filename
         rescue Exception => e
-          @logger.error("Unable to load file: #{filename}. Reason: #{e.inspect}" )
+          @logger.error("Unable to load file: #{filename}. Reason: #{e.inspect}")
         end
       end
 
