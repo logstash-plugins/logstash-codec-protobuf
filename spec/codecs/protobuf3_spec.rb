@@ -10,24 +10,69 @@ require 'google/protobuf' # for protobuf3
 
 describe LogStash::Codecs::Protobuf do
 
-  pb_include_path = "../../../spec/helpers/"
+  pb_include_path = File.expand_path(".") + "/spec/helpers"
+
+  context "config" do
+    context "using class_file and include_path" do
+      let(:plugin) {
+        LogStash::Codecs::Protobuf.new(
+          "class_name" => "Unicorn",
+          "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'],
+          "class_file" => pb_include_path + '/pb3/unicorn_pb.rb',
+          "protobuf_version" => 3
+        )
+      }
+
+      it "should fail to register the plugin with ConfigurationError" do
+        expect {plugin.register}.to raise_error(LogStash::ConfigurationError, /`include_path` and `class_file`/)
+      end # it
+    end
+
+    context "not using class_file or include_path" do
+      let(:plugin) {
+        LogStash::Codecs::Protobuf.new("class_name" => "Unicorn")
+      }
+
+      it "should fail to register the plugin with ConfigurationError" do
+        expect {plugin.register}.to raise_error(LogStash::ConfigurationError, /`include_path` or `class_file`/)
+      end # it
+    end
+
+    RSpec::Expectations.configuration.on_potential_false_positives = :nothing
+
+    context "re-registering the plugin with a valid configuration" do
+      let(:plugin) { LogStash::Codecs::Protobuf.new(
+        "class_name" => "A.MessageA", "class_file" => [ pb_include_path + '/pb3/messageA_pb.rb' ],
+        "protobuf_version" => 3,
+        "protobuf_root_directory" => File.expand_path(File.dirname(__FILE__) + pb_include_path + '/pb3/'))
+      }
+
+      it "should not fail" do
+        expect {
+          # this triggers the register() method of the plugin for a second time
+          plugin.register
+        }.not_to raise_error(RuntimeError)
+      end # it
+    end
+  end # context
 
   context "#test1_pb3" do
 
 
     #### Test case 1: Decode simple protobuf ####################################################################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new(
+      "class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
     before do
-        plugin_unicorn.register      
+        plugin_unicorn.register
     end
 
     it "should return an event from protobuf encoded data" do
-    
+
       unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23], :fur_colour => Colour::PINK, 
+      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23], :fur_colour => Colour::PINK,
       :favourite_colours => [Colour::GREEN, Colour::BLUE]
       }
-      
+
       unicorn_object = unicorn_class.new(data)
       bin = unicorn_class.encode(unicorn_object)
       plugin_unicorn.decode(bin) do |event|
@@ -39,7 +84,7 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("is_pegasus") ).to eq(data[:is_pegasus] )
       end
     end # it
-  end # context 
+  end # context
 
   context "#test2_pb3" do
 
@@ -49,17 +94,17 @@ describe LogStash::Codecs::Protobuf do
     #### Test case 2: decode nested protobuf ####################################################################################################################
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
     before do
-        plugin_unicorn.register      
+        plugin_unicorn.register
     end
 
     it "should return an event from protobuf encoded data with nested classes" do
-    
+
 
       unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
 
       father = unicorn_class.new({:name=> "Sparkle", :age => 50, :fur_colour => 3 })
-      data = {:name => 'Glitter', :fur_colour => Colour::GLITTER, :father => father}   
-     
+      data = {:name => 'Glitter', :fur_colour => Colour::GLITTER, :father => father}
+
       unicorn_object = unicorn_class.new(data)
       bin = unicorn_class.encode(unicorn_object)
       plugin_unicorn.decode(bin) do |event|
@@ -72,23 +117,23 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-  end # context 
+  end # context
 
   context "#test3_pb3" do
 
     #### Test case 3: decode ProbeResult ####################################################################################################################
     let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
     before do
-        plugin_3.register      
+        plugin_3.register
     end
 
     it "should return an event from protobuf encoded data with nested classes" do
-    
+
 
       probe_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("ProbeResult").msgclass
       ping_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PingIPv4Result").msgclass
 
-      ping_result_data = {:status=> PingIPv4Result::Status::ERROR, 
+      ping_result_data = {:status=> PingIPv4Result::Status::ERROR,
         :latency => 50, :ip => "8.8.8.8", :probe_ip => "127.0.0.1", :geolocation => "New York City" }
       ping_result_object = ping_result_class.new(ping_result_data)
 
@@ -104,29 +149,29 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("TaskPingIPv4Result")["geolocation"] ).to eq(ping_result_data[:geolocation] )
       end
     end # it
-  end # context 
+  end # context
 
   context "#test4_pb3" do
 
     #### Test case 4: decode PBDNSMessage ####################################################################################################################
     let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage", "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
     before do
-        plugin_4.register      
+        plugin_4.register
     end
 
     it "should return an event from protobuf encoded data with nested classes" do
-    
+
 
       pbdns_message_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage").msgclass
-      dns_question_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSQuestion").msgclass
-      dns_response_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSResponse").msgclass
-      dns_rr_class       = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSResponse.DNSRR").msgclass
+      dns_question_class  = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSQuestion").msgclass
+      dns_response_class  = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSResponse").msgclass
+      dns_rr_class        = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSResponse.DNSRR").msgclass
 
       dns_question_data = {:qName => "Foo", :qType => 12345, :qClass => 67890 }
       dns_question_object = dns_question_class.new(dns_question_data)
 
-      dns_response_data = {:rcode => 12345, :appliedPolicy => "baz", :tags => ["a","b","c"], 
-        :queryTimeSec => 123, :queryTimeUsec => 456, 
+      dns_response_data = {:rcode => 12345, :appliedPolicy => "baz", :tags => ["a","b","c"],
+        :queryTimeSec => 123, :queryTimeUsec => 456,
         :appliedPolicyType => PBDNSMessage::PolicyType::NSIP}
 
       dns_rr_data = [
@@ -160,11 +205,11 @@ describe LogStash::Codecs::Protobuf do
       pbdns_message_object = pbdns_message_class.new(pbdns_message_data)
       bin = pbdns_message_class.encode(pbdns_message_object)
       plugin_4.decode(bin) do |event|
-        
-        ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId' ,'initialRequestId','deviceIdf'].each { |n|  
+
+        ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId' ,'initialRequestId','deviceIdf'].each { |n|
           expect(event.get(n)).to eq(pbdns_message_data[n.to_sym] ) }
 
-        # enum test: 
+        # enum test:
         expect(event.get("type") ).to eq("DNSIncomingResponseType" )
         expect(event.get("socketFamily") ).to eq("INET6" )
         expect(event.get("socketProtocol") ).to eq("TCP" )
@@ -172,11 +217,11 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("question")["qName"] ).to eq(dns_question_data[:qName] )
         expect(event.get("question")["qType"] ).to eq(dns_question_data[:qType] )
         expect(event.get("question")["qClass"] ).to eq(dns_question_data[:qClass] )
-    
+
         ['rcode', 'appliedPolicy','tags','queryTimeSec','queryTimeUsec'].each { |n|   expect(event.get('response')[n]).to eq(dns_response_data[n.to_sym] )   }
         expect(event.get("response")['appliedPolicyType'] ).to eq("NSIP" )
 
-        dns_rr_data.each_with_index { | data, index | 
+        dns_rr_data.each_with_index { | data, index |
           found = event.get("response")['rrs'][index]
           ['name', 'type','class','ttl','rdata'].each { |n|   expect(found[n]).to eq(data[n.to_sym])   }
         }
@@ -184,14 +229,14 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-  end # context 
+  end # context
 
   context "#test5_pb3" do
 
-#### Test case 5: decode test case for github issue 17 ####################################################################################################################
+    #### Test case 5: decode test case for github issue 17 ####################################################################################################################
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
     before do
-        plugin_5.register      
+      plugin_5.register
     end
 
     it "should return an event from protobuf encoded data with nested classes" do
@@ -204,6 +249,47 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
+  end # context
+
+  context "#test6_pb3" do
+
+    # Test case 6: decode a message automatically loading the dependencies ##############################################################################
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new(
+      "class_name" => "A.MessageA",
+      "class_file" => [ 'messageA_pb.rb' ],
+      "protobuf_version" => 3,
+      "protobuf_root_directory" => pb_include_path + '/pb3/')
+    }
+
+    let(:plugin_unicorn2) { LogStash::Codecs::Protobuf.new(
+      "class_name" => "B.MessageB",
+      "class_file" => [ 'messageB_pb.rb' ],
+      "protobuf_version" => 3,
+      "protobuf_root_directory" => pb_include_path + '/pb3/')
+    }
+
+    before do
+      plugin_unicorn.register
+      plugin_unicorn2.register
+    end
+
+    it "should return an event from protobuf encoded data" do
+
+      header_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Header").msgclass
+      header_data = {:name => {'a' => 'b'}}
+      header_object = header_class.new(header_data)
+
+      message_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("A.MessageA").msgclass
+      data = {:name => "Test name", :header => header_object}
+
+      message_object = message_class.new(data)
+      bin = message_class.encode(message_object)
+
+      plugin_unicorn.decode(bin) do |event|
+        expect(event.get("name") ).to eq(data[:name] )
+        expect(event.get("header")['name'] ).to eq(header_data[:name])
+      end
+    end # it
   end # context
 
 
@@ -226,7 +312,7 @@ describe LogStash::Codecs::Protobuf do
         insist { data.is_a? String }
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-        decoded_data = pb_builder.decode(data) 
+        decoded_data = pb_builder.decode(data)
         expect(decoded_data.name ).to eq(event.get("name") )
         expect(decoded_data.age ).to eq(event.get("age") )
         expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
@@ -250,7 +336,7 @@ describe LogStash::Codecs::Protobuf do
     end
 
     event4 = LogStash::Event.new("name" => "Horst", "age" => 23, "is_pegasus" => true, "mother" => \
-        {"name" => "Mom", "age" => 47}, "father" => {"name"=> "Daddy", "age"=> 50, "fur_colour" => 3 } # 3 == SILVER      
+        {"name" => "Mom", "age" => 47}, "father" => {"name"=> "Daddy", "age"=> 50, "fur_colour" => 3 } # 3 == SILVER
       )
 
     it "should return protobuf encoded data for testcase 4" do
@@ -259,8 +345,8 @@ describe LogStash::Codecs::Protobuf do
         insist { data.is_a? String }
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-        decoded_data = pb_builder.decode(data) 
-        
+        decoded_data = pb_builder.decode(data)
+
         expect(decoded_data.name ).to eq(event.get("name") )
         expect(decoded_data.age ).to eq(event.get("age") )
         expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
@@ -270,7 +356,7 @@ describe LogStash::Codecs::Protobuf do
         expect(decoded_data.father.age ).to eq(event.get("father")["age"] )
         expect(decoded_data.father.fur_colour ).to eq(:SILVER)
 
-      
+
       end # subject4.on_event
       subject.encode(event4)
     end # it

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+// Compile: protoc --ruby_out=. spec/helpers/*proto3
+
+package A;
+
+import "header/header.proto3";
+
+message MessageA {
+    string name = 1;
+    Header header = 2;
+}
