@@ -30,6 +30,8 @@ kafka
 {
  zk_connect => "127.0.0.1"
  topic_id => "your_topic_goes_here"
+ key_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
+ value_deserializer_class => "org.apache.kafka.common.serialization.ByteArrayDeserializer"
  codec => protobuf 
  {
    class_name => "Animal::Unicorn"
@@ -37,6 +39,7 @@ kafka
  }
 }
 
+Specifically for the kafka input: please set the deserializer classes as shown above.
 
 [id="plugins-{type}s-{plugin}-options"]
 ==== Protobuf Codec Configuration Options
@@ -70,6 +73,11 @@ module Foods
            # here are your field definitions.
 
 If your class references other definitions: you only have to add the main class here.
+For version 3 class names check the bottom of the generated protobuf ruby file. It contains lines like this:
+
+    Animals.Unicorn = Google::Protobuf::DescriptorPool.generated_pool.lookup("Animals.Unicorn").msgclass
+
+Use the parameter for the lookup call as the class_name for the codec config.
 
 [id="plugins-{type}s-{plugin}-include_path"]
 ===== `include_path` 

@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+// Compile: protoc --ruby_out=. spec/helpers/*proto3
+
+message Header {
+    map<string, string> name = 3;
+}
