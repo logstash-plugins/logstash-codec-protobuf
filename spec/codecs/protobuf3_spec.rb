@@ -4,13 +4,29 @@ require "logstash/codecs/protobuf"
 require "logstash/event"
 require "insist"
 
-
 require 'google/protobuf' # for protobuf3
 
+# absolute path to the protobuf helpers directory
+pb_include_path = File.expand_path(".") + "/spec/helpers"
+
+require pb_include_path + '/pb3/unicorn_pb.rb'
+unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
 
 describe LogStash::Codecs::Protobuf do
 
-  pb_include_path = File.expand_path(".") + "/spec/helpers"
+  context ".reloadable?" do
+    subject do
+      next LogStash::Codecs::Protobuf.new(
+        "class_name" => "Unicorn",
+        "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'],
+        "protobuf_version" => 3
+      )
+    end
+
+    it "returns false" do
+      expect(subject.reloadable?).to be_falsey
+    end
+  end
 
   context "config" do
     context "using class_file and include_path" do
@@ -42,14 +58,16 @@ describe LogStash::Codecs::Protobuf do
 
     context "re-registering the plugin with a valid configuration" do
       let(:plugin) { LogStash::Codecs::Protobuf.new(
-        "class_name" => "A.MessageA", "class_file" => [ pb_include_path + '/pb3/messageA_pb.rb' ],
+        "class_name" => "A.MessageA",
+        "class_file" => [ pb_include_path + '/pb3/messageA_pb.rb' ],
         "protobuf_version" => 3,
         "protobuf_root_directory" => File.expand_path(File.dirname(__FILE__) + pb_include_path + '/pb3/'))
       }
 
       it "should not fail" do
         expect {
-          # this triggers the register() method of the plugin for a second time
+          # this triggers the `register()` method of the plugin multiple times
+          plugin.register
           plugin.register
         }.not_to raise_error(RuntimeError)
       end # it
@@ -61,10 +79,8 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 1: Decode simple protobuf ####################################################################################################################
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new(
-      "class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
-    before do
-        plugin_unicorn.register
-    end
+      "class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)
+    }
 
     it "should return an event from protobuf encoded data" do
 
@@ -88,20 +104,10 @@ describe LogStash::Codecs::Protobuf do
 
   context "#test2_pb3" do
 
-
-
-
     #### Test case 2: decode nested protobuf ####################################################################################################################
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
-    before do
-        plugin_unicorn.register
-    end
 
     it "should return an event from protobuf encoded data with nested classes" do
-
-
-      unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-
       father = unicorn_class.new({:name=> "Sparkle", :age => 50, :fur_colour => 3 })
       data = {:name => 'Glitter', :fur_colour => Colour::GLITTER, :father => father}
 
@@ -123,12 +129,12 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 3: decode ProbeResult ####################################################################################################################
     let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
+
     before do
         plugin_3.register
     end
 
     it "should return an event from protobuf encoded data with nested classes" do
-
 
       probe_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("ProbeResult").msgclass
       ping_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PingIPv4Result").msgclass
@@ -155,6 +161,7 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 4: decode PBDNSMessage ####################################################################################################################
     let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage", "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
+
     before do
         plugin_4.register
     end
@@ -235,6 +242,7 @@ describe LogStash::Codecs::Protobuf do
 
     #### Test case 5: decode test case for github issue 17 ####################################################################################################################
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
+
     before do
       plugin_5.register
     end
@@ -253,24 +261,25 @@ describe LogStash::Codecs::Protobuf do
 
   context "#test6_pb3" do
 
+    let(:execution_context) { double("execution_context")}
+    let(:pipeline_id) {rand(36**8).to_s(36)}
+
     # Test case 6: decode a message automatically loading the dependencies ##############################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new(
+    let(:plugin) { LogStash::Codecs::Protobuf.new(
       "class_name" => "A.MessageA",
       "class_file" => [ 'messageA_pb.rb' ],
       "protobuf_version" => 3,
       "protobuf_root_directory" => pb_include_path + '/pb3/')
     }
 
-    let(:plugin_unicorn2) { LogStash::Codecs::Protobuf.new(
-      "class_name" => "B.MessageB",
-      "class_file" => [ 'messageB_pb.rb' ],
-      "protobuf_version" => 3,
-      "protobuf_root_directory" => pb_include_path + '/pb3/')
-    }
-
     before do
-      plugin_unicorn.register
-      plugin_unicorn2.register
+      allow(plugin).to receive(:execution_context).and_return(execution_context)
+      allow(execution_context).to receive(:pipeline_id).and_return(pipeline_id)
+
+      # this is normally done on the input plugins we "mock" it here to avoid
+      # instantiating a dummy input plugin. See
+      # https://github.com/ph/logstash/blob/37551a89b8137c1dc6fa4fbd992584c363a36065/logstash-core/lib/logstash/inputs/base.rb#L108
+      plugin.execution_context = execution_context
     end
 
     it "should return an event from protobuf encoded data" do
@@ -285,7 +294,7 @@ describe LogStash::Codecs::Protobuf do
       message_object = message_class.new(data)
       bin = message_class.encode(message_object)
 
-      plugin_unicorn.decode(bin) do |event|
+      plugin.decode(bin) do |event|
         expect(event.get("name") ).to eq(data[:name] )
         expect(event.get("header")['name'] ).to eq(header_data[:name])
       end
@@ -296,7 +305,6 @@ describe LogStash::Codecs::Protobuf do
   context "#encodePB3-a" do
 
     #### Test case 3: encode simple protobuf ####################################################################################################################
-
 
     require_relative '../helpers/pb3/unicorn_pb.rb'
 
@@ -320,6 +328,7 @@ describe LogStash::Codecs::Protobuf do
         expect(decoded_data.favourite_numbers ).to eq(event.get("favourite_numbers") )
         expect(decoded_data.favourite_colours ).to eq([:BLUE,:WHITE] )
       end # subject.on_event
+
       subject.encode(event3)
     end # it
 
