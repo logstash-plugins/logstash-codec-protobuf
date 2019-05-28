@@ -214,6 +214,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
     if stop_on_error
       raise e
+    else # keep original message so that the user can debug it.
+      yield LogStash::Event.new("message" => data, "tags" => ["_protobufdecodefailure"])
     end
   end # def decode
 

@@ -1,3 +1,10 @@
+## 1.2.1
+  - Keep original data in case of parsing errors
+
+## 1.2.0
+  - Autoload all referenced protobuf classes
+  - Fix concurrency issue when using multiple pipelines
+
 ## 1.1.0
   - Add support for protobuf3
 
