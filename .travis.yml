@@ -17,5 +17,5 @@ matrix:
   fast_finish: true
 install: true
 script: ci/build.sh
-jdk: openjdk8
+jdk: oraclejdk8 
 before_install: gem install bundler -v '< 2'
