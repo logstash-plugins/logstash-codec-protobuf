@@ -1,3 +1,6 @@
+## 1.2.2
+  - Add type conversion feature to encoder
+
 ## 1.2.1
   - Keep original data in case of parsing errors
 
