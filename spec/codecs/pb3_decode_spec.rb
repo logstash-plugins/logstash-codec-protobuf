@@ -82,7 +82,7 @@ describe LogStash::Codecs::Protobuf do
       "class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)
     }
 
-    it "should return an event from protobuf encoded data" do
+    it "should return an event from protobuf data" do
 
       unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
       data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23], :fur_colour => Colour::PINK,
@@ -107,7 +107,7 @@ describe LogStash::Codecs::Protobuf do
     #### Test case 2: decode nested protobuf ####################################################################################################################
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
 
-    it "should return an event from protobuf encoded data with nested classes" do
+    it "should return an event from protobuf data with nested classes" do
       father = unicorn_class.new({:name=> "Sparkle", :age => 50, :fur_colour => 3 })
       data = {:name => 'Glitter', :fur_colour => Colour::GLITTER, :father => father}
 
@@ -134,7 +134,7 @@ describe LogStash::Codecs::Protobuf do
         plugin_3.register
     end
 
-    it "should return an event from protobuf encoded data with nested classes" do
+    it "should return an event from protobuf data with nested classes" do
 
       probe_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("ProbeResult").msgclass
       ping_result_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PingIPv4Result").msgclass
@@ -166,7 +166,7 @@ describe LogStash::Codecs::Protobuf do
         plugin_4.register
     end
 
-    it "should return an event from protobuf encoded data with nested classes" do
+    it "should return an event from protobuf data with nested classes" do
 
 
       pbdns_message_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage").msgclass
@@ -247,7 +247,7 @@ describe LogStash::Codecs::Protobuf do
       plugin_5.register
     end
 
-    it "should return an event from protobuf encoded data with nested classes" do
+    it "should return an event from protobuf data with nested classes" do
       integertest_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("com.foo.bar.IntegerTestMessage").msgclass
       integertest_object = integertest_class.new({:response_time => 500})
       bin = integertest_class.encode(integertest_object)
@@ -283,7 +283,7 @@ describe LogStash::Codecs::Protobuf do
       plugin.execution_context = execution_context
     end
 
-    it "should return an event from protobuf encoded data" do
+    it "should return an event from protobuf data" do
 
       header_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Header").msgclass
       header_data = {:name => {'a' => 'b'}}
@@ -303,75 +303,7 @@ describe LogStash::Codecs::Protobuf do
   end # context
 
 
-  context "#encodePB3-a" do
 
-    #### Test case 3: encode simple protobuf ####################################################################################################################
-
-    require_relative '../helpers/pb3/unicorn_pb.rb'
-
-    subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)
-    end
-
-    event3 = LogStash::Event.new("name" => "Pinkie", "age" => 18, "is_pegasus" => false, "favourite_numbers" => [1,2,3], "fur_colour" => Colour::PINK, "favourite_colours" => [1,5]      )
-
-    it "should return protobuf encoded data for testcase 3" do
-
-      subject.on_event do |event, data|
-        insist { data.is_a? String }
-
-        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.name ).to eq(event.get("name") )
-        expect(decoded_data.age ).to eq(event.get("age") )
-        expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
-        expect(decoded_data.fur_colour ).to eq(:PINK)
-        expect(decoded_data.favourite_numbers ).to eq(event.get("favourite_numbers") )
-        expect(decoded_data.favourite_colours ).to eq([:BLUE,:WHITE] )
-      end # subject.on_event
-
-      subject.encode(event3)
-    end # it
-
-  end # context
-
-  context "#encodePB3-b" do
-
-    #### Test case 4: encode nested protobuf ####################################################################################################################
-
-    require_relative '../helpers/pb3/unicorn_pb.rb'
-
-    subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)
-    end
-
-    event4 = LogStash::Event.new("name" => "Horst", "age" => 23, "is_pegasus" => true, "mother" => \
-        {"name" => "Mom", "age" => 47}, "father" => {"name"=> "Daddy", "age"=> 50, "fur_colour" => 3 } # 3 == SILVER
-      )
-
-    it "should return protobuf encoded data for testcase 4" do
-
-      subject.on_event do |event, data|
-        insist { data.is_a? String }
-
-        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-        decoded_data = pb_builder.decode(data)
-
-        expect(decoded_data.name ).to eq(event.get("name") )
-        expect(decoded_data.age ).to eq(event.get("age") )
-        expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
-        expect(decoded_data.mother.name ).to eq(event.get("mother")["name"] )
-        expect(decoded_data.mother.age ).to eq(event.get("mother")["age"] )
-        expect(decoded_data.father.name ).to eq(event.get("father")["name"] )
-        expect(decoded_data.father.age ).to eq(event.get("father")["age"] )
-        expect(decoded_data.father.fur_colour ).to eq(:SILVER)
-
-
-      end # subject4.on_event
-      subject.encode(event4)
-    end # it
-
-  end # context #encodePB3
 
 
 
@@ -383,7 +315,7 @@ describe LogStash::Codecs::Protobuf do
         plugin_7.register
     end
 
-    it "should return an event from protobuf encoded data with repeated top level objects" do
+    it "should return an event from protobuf data with repeated top level objects" do
       event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass # TODO this shouldnt be necessary because the classes are already
       # specified at the end of the _pb.rb files
       events_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass
