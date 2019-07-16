@@ -337,4 +337,37 @@ describe LogStash::Codecs::Protobuf do
   end # context test7_pb3
 
 
+  context "#test8_pb3" do
+
+    #### Test case 6: decode test case for github issue 18 ####################################################################################################################
+    let(:plugin_8) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3)  }
+    before do
+        plugin_8.register
+    end
+
+    it "should add meta information on oneOf fields" do
+      pegasus_data = {:wings_length => 100}
+      horsey = FantasyPegasus.new(pegasus_data)
+
+      braid_data = {:braid_thickness => 10, :braiding_style => "french"}
+      tail_data = {:tail_length => 80, :braided => BraidedHorseTail.new(braid_data) }
+      tail = FantasyHorseTail.new(tail_data)
+
+      data = {:name=>"Reinhold", :pegasus => horsey, :tail => tail}
+      pb_obj = FantasyHorse.new(data)
+      bin = FantasyHorse.encode(pb_obj)
+      plugin_8.decode(bin) do |event|
+        expect(event.get("name") ).to eq(data[:name])
+        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
+        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("pegasus")
+        expect(event.get("@metadata")["pb_one0f"]["tail"]["hair_type"] ).to eq("braided")
+      end
+    end # it
+
+
+  end # context test8_pb3
+
 end # describe

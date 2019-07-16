@@ -1,3 +1,6 @@
+## 1.2.3
+  - Add oneof information to @metadata.
+
 ## 1.2.2
   - Add type conversion feature to encoder
 
