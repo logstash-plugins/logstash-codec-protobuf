@@ -140,6 +140,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Instruct the encoder to attempt converting data types to match the protobuf definitions. Available only for protobuf version 3.
   config :pb3_encoder_autoconvert_types, :validate => :boolean, :default => true, :required => false
 
+  # Each message should be delimited with it's length before message data
+  config :length_delimited, :validate => :boolean, :default => false, :required => false
 
 
   attr_reader :execution_context
@@ -271,7 +273,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       @logger.warn("Protobuf encoding error 5: empty protobuf builder for class #{@class_name}")
     end
     pb_obj = @pb_builder.new(datahash)
-    @pb_builder.encode(pb_obj)
+    if length_delimited
+      byte_data = @pb_builder.encode(pb_obj)
+      sio = ProtocolBuffers.bin_sio
+      ProtocolBuffers::Varint.encode(sio, byte_data.size)
+      sio.write(byte_data)
+      sio.string
+    else
+      @pb_builder.encode(pb_obj)
+    end
 
   rescue ArgumentError => e
     k = event.to_hash.keys.join(", ")
