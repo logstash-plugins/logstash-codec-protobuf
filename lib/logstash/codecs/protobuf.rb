@@ -204,6 +204,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def decode(data)
     if @protobuf_version == 3
+      if length_delimited
+        data = ProtocolBuffers.bin_sio(data)
+        length = ProtocolBuffers::Varint.decode(data)
+        data = LimitedIO.new(data, length).read
+      end
       decoded = @pb_builder.decode(data.to_s)
       h = pb3_deep_to_hash(decoded)
     else
