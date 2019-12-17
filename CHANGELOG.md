@@ -1,3 +1,5 @@
+## 1.2.3
+  - Add length-delimited feature to decoder and encoder
 ## 1.2.2
   - Add type conversion feature to encoder
 

@@ -30,6 +30,8 @@ There are two ways to specify the locations of the ruby protobuf definitions:
 
 `pb3_encoder_autoconvert_types` (optional): Encoder only: will try to fix type mismatches between the protobuf definition and the actual data. Available for protobuf 3 only. Activated by default.
 
+`length_delimited` (optional): Each message should be delimited with it's length before message data. Defaults to false.
+
 ## Usage example: decoder
 
 Use this as a codec in any logstash input. Just provide the name of the class that your incoming objects will be encoded in, and specify the path to the compiled definition.
