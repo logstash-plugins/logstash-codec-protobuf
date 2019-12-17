@@ -140,6 +140,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Instruct the encoder to attempt converting data types to match the protobuf definitions. Available only for protobuf version 3.
   config :pb3_encoder_autoconvert_types, :validate => :boolean, :default => true, :required => false
 
+  # Each message should be delimited with it's length before message data
+  config :length_delimited, :validate => :boolean, :default => false, :required => false
 
 
   attr_reader :execution_context
@@ -201,6 +203,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def decode(data)
+    if length_delimited
+      data = ProtocolBuffers.bin_sio(data)
+      length = ProtocolBuffers::Varint.decode(data)
+      data = LimitedIO.new(data, length).read
+    end
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
       h = pb3_deep_to_hash(decoded)
@@ -271,7 +278,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       @logger.warn("Protobuf encoding error 5: empty protobuf builder for class #{@class_name}")
     end
     pb_obj = @pb_builder.new(datahash)
-    @pb_builder.encode(pb_obj)
+    if length_delimited
+      byte_data = @pb_builder.encode(pb_obj)
+      sio = ProtocolBuffers.bin_sio
+      ProtocolBuffers::Varint.encode(sio, byte_data.size)
+      sio.write(byte_data)
+      sio.string
+    else
+      @pb_builder.encode(pb_obj)
+    end
 
   rescue ArgumentError => e
     k = event.to_hash.keys.join(", ")
@@ -515,7 +530,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def pb2_encode(event)
     data = pb2_prepare_for_encoding(event.to_hash, @class_name)
     msg = @pb_builder.new(data)
-    msg.serialize_to_string
+    if length_delimited
+      byte_data = msg.serialize_to_string
+      sio = ProtocolBuffers.bin_sio
+      ProtocolBuffers::Varint.encode(sio, byte_data.size)
+      sio.write(byte_data)
+      sio.string
+    else
+      msg.serialize_to_string
+    end
   rescue NoMethodError => e
     @logger.warn("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
     raise e
