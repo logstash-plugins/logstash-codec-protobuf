@@ -23,5 +23,6 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'google-protobuf', '3.5.0.pre'
   s.add_runtime_dependency 'ruby-protocol-buffers' # for protobuf 2
   s.add_development_dependency 'logstash-devutils'
+  s.add_development_dependency 'insist'
 end
 
