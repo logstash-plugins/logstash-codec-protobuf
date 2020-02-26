@@ -32,7 +32,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :braid_thickness, :int32, 2
   end
   add_message "NaturalHorseTail" do
-    optional :hair_type, :string, 1
+    optional :wavyness, :string, 1
   end
 end
 
