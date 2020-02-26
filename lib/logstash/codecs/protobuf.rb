@@ -225,10 +225,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       e.set("[@metadata][pb_oneof]", meta)
     end
     yield e if block_given?
-  rescue => e
-    @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
+  rescue => ex
+    @logger.warn("Couldn't decode protobuf: #{ex.inspect}.")
     if stop_on_error
-      raise e
+      raise ex
     else # keep original message so that the user can debug it.
       yield LogStash::Event.new("message" => data, "tags" => ["_protobufdecodefailure"])
     end
