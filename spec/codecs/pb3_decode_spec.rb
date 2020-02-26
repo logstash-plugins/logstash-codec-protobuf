@@ -359,9 +359,6 @@ describe LogStash::Codecs::Protobuf do
       bin = FantasyHorse.encode(pb_obj)
       plugin_8a.decode(bin) do |event|
 
-        puts "8a event: #{event.to_hash}" # TODO remove
-        puts "8a metadata: #{event.get('@metadata')['pb_oneof'].to_hash}" # TODO remove
-
         expect(event.get("name") ).to eq(data[:name])
         expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
         expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
