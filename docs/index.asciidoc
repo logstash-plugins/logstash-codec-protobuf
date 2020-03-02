@@ -224,7 +224,8 @@ Available only for protobuf version 3.
   * Value type is <<boolean,boolean>>
   * Default value is false
 
-Add meta information to `[@metadata][pb_oneof]` about which classes were chosen for [oneof](https://developers.google.com/protocol-buffers/docs/proto3#oneof) fields.
+Add meta information to `[@metadata][pb_oneof]` about which classes were chosen for [oneof](https://developers.google.com/protocol-buffers/docs/proto3#oneof) fields. A new field of name `[@metadata][pb_oneof][FOO]` will be added, where `FOO` is the name of the `oneof` field.
+
 Example values: for the protobuf definition
 [source,ruby]
     oneof :horse_type do
