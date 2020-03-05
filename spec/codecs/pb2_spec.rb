@@ -2,8 +2,6 @@
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/codecs/protobuf"
 require "logstash/event"
-require "insist"
-
 
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers, for protobuf2
 
@@ -117,7 +115,7 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return protobuf encoded data from a simple event" do
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
         unicorn = Animal::UnicornEvent.parse(data)
 
         expect(unicorn.colour ).to eq(event.get("colour") )
@@ -148,7 +146,7 @@ describe LogStash::Codecs::Protobuf do
     it "should return protobuf encoded data from a complex event" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
         jimmy = Animal::Human.parse(data)
 
         expect(jimmy.first_name ).to eq(event.get("first_name") )
@@ -190,7 +188,7 @@ describe LogStash::Codecs::Protobuf do
     it "should return protobuf encoded data from a complex event with enums" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
 
         colpref = ColourProtoTest.parse(data)
 
