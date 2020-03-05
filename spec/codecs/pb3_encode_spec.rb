@@ -1,12 +1,7 @@
-
-
-
-
 # encoding: utf-8
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/codecs/protobuf"
 require "logstash/event"
-require "insist"
 
 require 'google/protobuf' # for protobuf3
 
@@ -30,7 +25,7 @@ describe LogStash::Codecs::Protobuf do
     it "should return protobuf encoded data for testcase 1" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
         decoded_data = pb_builder.decode(data)
@@ -64,7 +59,7 @@ describe LogStash::Codecs::Protobuf do
     it "should return protobuf encoded data for testcase 2" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
         decoded_data = pb_builder.decode(data)
@@ -109,7 +104,7 @@ describe LogStash::Codecs::Protobuf do
     it "should return protobuf encoded data for testcase 3" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("something.rum_akamai.ProtoAkamaiRum").msgclass
         decoded_data = pb_builder.decode(data)
@@ -160,7 +155,7 @@ describe LogStash::Codecs::Protobuf do
     it "should fix datatypes to match the protobuf definition" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("something.rum_akamai.ProtoAkamai2Rum").msgclass
         decoded_data = pb_builder.decode(data)
@@ -199,7 +194,7 @@ context "encodePB3-e" do
     it "should ignore empty fields" do
 
       subject.on_event do |event, data|
-        insist { data.is_a? String }
+        expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("something.rum_akamai.ProtoAkamai3Rum").msgclass
         decoded_data = pb_builder.decode(data)

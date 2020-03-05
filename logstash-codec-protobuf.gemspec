@@ -24,4 +24,3 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'ruby-protocol-buffers' # for protobuf 2
   s.add_development_dependency 'logstash-devutils'
 end
-

@@ -2,7 +2,6 @@
 require "logstash/devutils/rspec/spec_helper"
 require "logstash/codecs/protobuf"
 require "logstash/event"
-require "insist"
 
 require 'google/protobuf' # for protobuf3
 
