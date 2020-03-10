@@ -140,6 +140,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Instruct the encoder to attempt converting data types to match the protobuf definitions. Available only for protobuf version 3.
   config :pb3_encoder_autoconvert_types, :validate => :boolean, :default => true, :required => false
 
+  # Add meta information to `[@metadata][pb_oneof]` about which classes were chosen for [oneof](https://developers.google.com/protocol-buffers/docs/proto3#oneof) fields.
+  # Example values: for the protobuf definition
+  # ```    oneof :horse_type do
+  #          optional :unicorn, :message, 2, "FantasyUnicorn"
+  #          optional :pegasus, :message, 3, "FantasyPegasus"
+  #        end
+  # ```
+  # the field `[@metadata][pb_oneof][horse_type]` will be set to either `pegasus` or `unicorn`.
+  # Available only for protobuf version 3.
+  config :pb3_set_oneof_metainfo, :validate => :boolean, :default => false, :required => false
 
 
   attr_reader :execution_context
@@ -154,7 +164,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @metainfo_enumclasses = {}
     @metainfo_pb2_enumlist = []
     @pb3_typeconversion_tag = "_protobuf_type_converted"
-
 
     if @include_path.length > 0 and not class_file.strip.empty?
       raise LogStash::ConfigurationError, "Cannot use `include_path` and `class_file` at the same time"
@@ -203,16 +212,23 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
+      if @pb3_set_oneof_metainfo
+        meta = pb3_get_oneof_metainfo(decoded, @class_name)
+      end
       h = pb3_deep_to_hash(decoded)
     else
       decoded = @pb_builder.parse(data.to_s)
       h = decoded.to_hash
     end
-    yield LogStash::Event.new(h) if block_given?
-  rescue => e
-    @logger.warn("Couldn't decode protobuf: #{e.inspect}.")
+    e = LogStash::Event.new(h)
+    if @protobuf_version == 3 and @pb3_set_oneof_metainfo
+      e.set("[@metadata][pb_oneof]", meta)
+    end
+    yield e if block_given?
+  rescue => ex
+    @logger.warn("Couldn't decode protobuf: #{ex.inspect}.")
     if stop_on_error
-      raise e
+      raise ex
     else # keep original message so that the user can debug it.
       yield LogStash::Event.new("message" => data, "tags" => ["_protobufdecodefailure"])
     end
@@ -297,9 +313,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           @logger.warn(msg)
           mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
 
-          msg = "Protobuf encoding info 2.2: Type mismatches found: #{mismatches}." # TODO remove
-          @logger.warn(msg)
-
           event = pb3_convert_mismatched_types(event, mismatches)
           # Add a (temporary) tag to handle the recursion stop
           pb3_add_tag(event, @pb3_typeconversion_tag )
@@ -354,17 +367,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     else
       case value
       when ::Hash, Google::Protobuf::MessageExts
-
         is_mismatch = false
         descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key)
-        if descriptor.subtype != nil
+        if !descriptor.subtype.nil?
           class_of_nested_object = pb3_get_descriptorpool_name(descriptor.subtype.msgclass)
           new_prefix = "#{key}."
           recursive_mismatches = pb3_get_type_mismatches(value, new_prefix, class_of_nested_object)
           mismatches.concat(recursive_mismatches)
         end
       when ::Array
-
         expected_type = pb3_get_expected_type(key, pb_class)
         is_mismatch = (expected_type != Google::Protobuf::RepeatedField)
         child_type = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key).type
@@ -510,6 +521,29 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     datahash
   end
 
+  def pb3_get_oneof_metainfo(pb_object, pb_class_name)
+    meta = {}
+    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class_name).msgclass
+
+    pb_class.descriptor.each_oneof { |field|
+      field.each { | group_option |
+        if !pb_object.send(group_option.name).nil?
+            meta[field.name] = group_option.name
+        end
+      }
+    }
+
+    pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
+      # recurse over nested protobuf classes
+      pb_sub_object = pb_object.send(field.name)
+      if !pb_sub_object.nil? and !field.subtype.nil?
+          pb_sub_class = pb3_get_descriptorpool_name(field.subtype.msgclass)
+          meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
+      end
+    }
+
+    meta
+  end
 
 
   def pb2_encode(event)

@@ -73,7 +73,7 @@ describe LogStash::Codecs::Protobuf do
     end
   end # context
 
-  context "#test1_pb3" do
+  context "#pb3decoder_test1" do
 
 
     #### Test case 1: Decode simple protobuf ####################################################################################################################
@@ -101,7 +101,7 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
-  context "#test2_pb3" do
+  context "#pb3decoder_test2" do
 
     #### Test case 2: decode nested protobuf ####################################################################################################################
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
@@ -124,7 +124,7 @@ describe LogStash::Codecs::Protobuf do
 
   end # context
 
-  context "#test3_pb3" do
+  context "#pb3decoder_test3" do
 
     #### Test case 3: decode ProbeResult ####################################################################################################################
     let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
@@ -156,7 +156,7 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
-  context "#test4_pb3" do
+  context "#pb3decoder_test4" do
 
     #### Test case 4: decode PBDNSMessage ####################################################################################################################
     let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage", "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
@@ -237,7 +237,7 @@ describe LogStash::Codecs::Protobuf do
 
   end # context
 
-  context "#test5_pb3" do
+  context "#pb3decoder_test5" do
 
     #### Test case 5: decode test case for github issue 17 ####################################################################################################################
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
@@ -258,7 +258,7 @@ describe LogStash::Codecs::Protobuf do
 
   end # context
 
-  context "#test6_pb3" do
+  context "#pb3decoder_test6" do
 
 
     let(:execution_context) { double("execution_context")}
@@ -306,7 +306,7 @@ describe LogStash::Codecs::Protobuf do
 
 
 
-  context "#test7_pb3" do
+  context "#pb3decoder_test7" do
 
     #### Test case 6: decode test case for github issue 17 ####################################################################################################################
     let(:plugin_7) { LogStash::Codecs::Protobuf.new("class_name" => "RepeatedEvents", "include_path" => [pb_include_path + '/pb3/events_pb.rb'], "protobuf_version" => 3)  }
@@ -333,7 +333,113 @@ describe LogStash::Codecs::Protobuf do
     end # it
 
 
-  end # context test7_pb3
+  end # context pb3decoder_test7
 
+
+  context "#pb3decoder_test8a" do
+
+    ########################################################################################################################
+    let(:plugin_8a) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
+    before do
+        plugin_8a.register
+    end
+
+    it "should add meta information on oneof fields" do
+      pegasus_data = {:wings_length => 100}
+      horsey = FantasyPegasus.new(pegasus_data)
+
+      braid_data = {:braid_thickness => 10, :braiding_style => "french"}
+      tail_data = {:tail_length => 80, :braided => BraidedHorseTail.new(braid_data) }
+      tail = FantasyHorseTail.new(tail_data)
+
+      data = {:name=>"Reinhold", :pegasus => horsey, :tail => tail}
+      pb_obj = FantasyHorse.new(data)
+      bin = FantasyHorse.encode(pb_obj)
+      plugin_8a.decode(bin) do |event|
+
+        expect(event.get("name") ).to eq(data[:name])
+        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
+        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("pegasus")
+        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"] ).to eq("braided")
+
+      end
+    end # it
+
+
+  end # context pb3decoder_test8a
+
+
+
+
+  context "#pb3decoder_test8b" do
+
+    ########################################################################################################################
+    let(:plugin_8b) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
+    before do
+        plugin_8b.register
+    end
+
+    it "should not add meta information on oneof fields" do
+      pegasus_data = {:wings_length => 100}
+      horsey = FantasyPegasus.new(pegasus_data)
+
+      braid_data = {:braid_thickness => 10, :braiding_style => "french"}
+      tail_data = {:tail_length => 80, :braided => BraidedHorseTail.new(braid_data) }
+      tail = FantasyHorseTail.new(tail_data)
+
+      data = {:name=>"Winfried", :pegasus => horsey, :tail => tail}
+      pb_obj = FantasyHorse.new(data)
+      bin = FantasyHorse.encode(pb_obj)
+      plugin_8b.decode(bin) do |event|
+        expect(event.get("name") ).to eq(data[:name])
+        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
+        expect(event.get("@metadata")["pb_oneof"]).to be_nil
+
+      end
+    end # it
+
+
+  end # context pb3decoder_test8b
+
+
+  context "#pb3decoder_test8c" do # same test as 8a just with different one_of options selected
+
+    ########################################################################################################################
+    let(:plugin_8c) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
+    before do
+        plugin_8c.register
+    end
+
+    it "should add meta information on oneof fields" do
+      unicorn_data = {:horn_length => 30}
+      horsey = FantasyUnicorn.new(unicorn_data)
+
+      natural_data = {:wavyness => "B"}
+      tail_data = {:tail_length => 80, :natural => NaturalHorseTail.new(natural_data) }
+      tail = FantasyHorseTail.new(tail_data)
+
+      data = {:name=>"Hubert", :unicorn => horsey, :tail => tail}
+      pb_obj = FantasyHorse.new(data)
+      bin = FantasyHorse.encode(pb_obj)
+      plugin_8c.decode(bin) do |event|
+        expect(event.get("name") ).to eq(data[:name])
+        expect(event.get("unicorn")["horn_length"] ).to eq(unicorn_data[:horn_length])
+        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['natural']['wavyness'] ).to eq(natural_data[:wavyness])
+        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("unicorn")
+        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"] ).to eq("natural")
+
+      end
+    end # it
+
+
+  end # context pb3decoder_test8c
 
 end # describe

@@ -1,3 +1,6 @@
+## 1.2.3
+  - Add oneof information to @metadata (protobuf version 3 only).
+
 ## 1.2.2
   - Add type conversion feature to encoder
 
