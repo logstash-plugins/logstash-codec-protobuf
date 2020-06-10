@@ -211,5 +211,33 @@ context "encodePB3-e" do
 
 
 
+context "encodePB3-f" do
+
+    #### Test case 5: handle additional fields (discard event without crashing pipeline) ####################################################################################################################
+
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => "something.rum_akamai.ProtoAkamai3Rum",
+        "pb3_encoder_autoconvert_types" => false,
+        "include_path" => [pb_include_path + '/pb3/rum3_pb.rb' ], "protobuf_version" => 3)
+    end
+
+    event = LogStash::Event.new(
+      "domain" => nil, "bot" => "This field does not exist in the protobuf definition",
+      "header" => {"sender_id" => "23"},
+      "geo"=>{"organisation"=>"Jio", "rg"=>"DL", "netspeed"=>nil, "city"=>nil, "cc"=>"IN", "ovr"=>false, "postalcode"=>"110012", "isp"=>"Jio"}
+    )
+
+    it "should not return data" do
+
+      subject.on_event do |event, data|
+        expect("the on_event method should not be called").to eq("so this code should never be reached")
+      end
+      subject.encode(event)
+    end # it
+
+  end # context #encodePB3-f
+
+
+
 
 end # describe

@@ -241,7 +241,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     else
       protobytes = pb2_encode(event)
     end
-    @on_event.call(event, protobytes)
+    unless protobytes.nil? or protobytes.empty?
+      @on_event.call(event, protobytes)
+    end
   end # def encode
 
 
