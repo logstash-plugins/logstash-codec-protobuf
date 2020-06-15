@@ -1,3 +1,6 @@
+## 1.2.4
+  - Encoder bugfix: avoid pipeline crash if encoding failed.
+
 ## 1.2.3
   - Add oneof information to @metadata (protobuf version 3 only).
 
