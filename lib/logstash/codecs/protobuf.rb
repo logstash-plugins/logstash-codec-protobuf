@@ -140,6 +140,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Instruct the encoder to attempt converting data types to match the protobuf definitions. Available only for protobuf version 3.
   config :pb3_encoder_autoconvert_types, :validate => :boolean, :default => true, :required => false
 
+  config :encoder_drop_additional_fields, :validate => :boolean, :default => true, :required => false
+
   # Add meta information to `[@metadata][pb_oneof]` about which classes were chosen for [oneof](https://developers.google.com/protocol-buffers/docs/proto3#oneof) fields.
   # Example values: for the protobuf definition
   # ```    oneof :horse_type do
@@ -241,6 +243,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     else
       protobytes = pb2_encode(event)
     end
+    puts "I has de bytes: #{protobytes}" # TODO remove
     unless protobytes.nil? or protobytes.empty?
       @on_event.call(event, protobytes)
     end
@@ -281,13 +284,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     if is_recursive_call
       datahash = pb3_remove_typeconversion_tag(datahash)
     end
-    datahash = pb3_prepare_for_encoding(datahash)
+    datahash = pb3_prepare_for_encoding(datahash, @class_name, [])
     if datahash.nil?
       @logger.warn("Protobuf encoding error 4: empty data for event #{event.to_hash}")
     end
     if @pb_builder.nil?
       @logger.warn("Protobuf encoding error 5: empty protobuf builder for class #{@class_name}")
     end
+    puts "Imma encode: #{datahash}" # TODO remove
     pb_obj = @pb_builder.new(datahash)
     @pb_builder.encode(pb_obj)
 
@@ -303,8 +307,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.warn("Protobuf encoding error 3: #{e.inspect}. Event discarded. Input data: #{datahash}. The event has been discarded. Backtrace: #{e.backtrace}")
     nil
   end
-
-
 
 
   def pb3_handle_type_errors(event, e, is_recursive_call, datahash)
@@ -510,7 +512,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     struct
   end
 
-  def pb3_prepare_for_encoding(datahash)
+  def pb3_prepare_for_encoding(datahash, pb_class, parent_fields)
     # 0) Remove empty fields.
     datahash = datahash.select { |key, value| !value.nil? }
 
@@ -519,12 +521,64 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # 2) convert timestamps and other objects to strings
     datahash = datahash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x}
 
+    if @encoder_drop_additional_fields
+      puts "Datahash before: #{datahash}" # TODO
+      datahash = datahash.select { |k, v| field_exists_in_pb3_definition(k, pb_class, parent_fields) }
+      puts "Datahash after: #{datahash}" # TODO
+    end
+
     datahash.each do |key, value|
-      datahash[key] = pb3_prepare_for_encoding(value) if value.is_a?(Hash)
+      puts "hello #{key} #{parent_fields}"
+      new_parents = parent_fields.clone().append(key)
+      puts "world #{new_parents}"
+      datahash[key] = pb3_prepare_for_encoding(value, pb_class, new_parents) if value.is_a?(Hash)
     end
 
     datahash
   end
+
+
+  def field_exists_in_pb3_definition(key, pb_class, parent_fields)
+
+    descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key)
+    puts "field_exists #{key} #{pb_class} #{parent_fields.to_s}" # TODO
+
+    if !descriptor.nil? # Field exists on uppermost level
+      true
+    else
+      if parent_fields.size == 0 # not found and not nested
+        false
+      else
+
+        # key needs to be search in nested fields
+        nested_class = pb_class
+        puts "Searching for nested field #{key} in parent #{parent_fields.to_s}" # TODO
+        parent_fields.each do | fieldname |
+          classo = Google::Protobuf::DescriptorPool.generated_pool.lookup(nested_class)
+          puts "Class #{nested_class} has class: #{classo}" # TODO
+          field_descriptor = classo.lookup(fieldname)
+          puts "field_descriptor for #{fieldname}: #{field_descriptor}" # TODO
+          puts "subtype for #{fieldname}: #{field_descriptor.subtype}" # TODO
+          puts "subtype.msgclass for #{fieldname}: #{field_descriptor.subtype.msgclass}" # TODO
+
+          class_of_nested_object = pb3_get_descriptorpool_name(field_descriptor.subtype.msgclass)
+          puts "classo nesto: #{class_of_nested_object}" # TODO
+          nested_class = class_of_nested_object
+        end
+        puts "New nested class: #{nested_class}" # todo
+
+        class_descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(nested_class)
+        puts "class_descriptor: #{class_descriptor}"
+        field_descriptor = class_descriptor.lookup(key)
+        puts "field_descriptor: #{field_descriptor}"
+
+
+        !field_descriptor.nil?
+      end
+    end
+
+  end
+
 
   def pb3_get_oneof_metainfo(pb_object, pb_class_name)
     meta = {}
