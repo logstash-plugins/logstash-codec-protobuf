@@ -220,7 +220,7 @@ context "encodePB3-f" do
     subject do
       next LogStash::Codecs::Protobuf.new("class_name" => "something.rum_akamai.ProtoAkamai3Rum",
         "pb3_encoder_autoconvert_types" => false,
-        "encoder_drop_additional_fields" => false,
+        "pb3_encoder_drop_unknown_fields" => false,
         "include_path" => [pb_include_path + '/pb3/rum3_pb.rb' ], "protobuf_version" => 3)
     end
 
@@ -252,7 +252,7 @@ context "encodePB3-g" do
 
     subject do
       next LogStash::Codecs::Protobuf.new("class_name" => "hello.world.ProtoFun",
-        "encoder_drop_additional_fields" => true,
+        "pb3_encoder_drop_unknown_fields" => true,
         "include_path" => [pb_include_path + '/pb3/rum4_pb.rb' ], "protobuf_version" => 3)
     end
 
@@ -260,7 +260,7 @@ context "encodePB3-g" do
       "locale" => "de", "this_field" => "doesn't exist in the definition",
       "header" => {"sender_id" => "23"},
       "geo"=> {"position"=> {"x" => 13, "y" => 46}, "city"=>"Oslo", "isp"=>"TeleNorge"},
-      "user_agent" => {"browser_name"=>"Firefox", "major"=>98}
+      "user_agent" => {"browser_name"=>"Firefox", "major"=>98,  "that_field" => "doesn't exist either"}
     )
 
     it "should discard unknown fields" do
@@ -282,19 +282,9 @@ context "encodePB3-g" do
       end
       subject.encode(event)
 
-
-
     end # it
 
   end # context #encodePB3-g
-
-  # TODO test for nested fields
-
-  # TODO test for pb2
-
-
-
-
 
 
 end # describe
