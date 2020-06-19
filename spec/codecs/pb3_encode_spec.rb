@@ -230,10 +230,12 @@ context "encodePB3-f" do
       "geo"=>{"organisation"=>"Jio", "rg"=>"DL", "netspeed"=>nil, "city"=>nil, "cc"=>"IN", "ovr"=>false, "postalcode"=>"110012", "isp"=>"Jio"}
     )
 
+    expected_message = "Protobuf encoding error 1: Argument error (#<ArgumentError: field bot is not found>). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: geo, @version, header, @timestamp, bot, domain. Fields must not begin with @ sign. The event has been discarded."
+
     it "should not return data" do
 
       subject.encode(event)
-      expect(subject.logger).to have_received(:warn).with("TODO actual errrrooror message", anything)
+      expect(subject.logger).to have_received(:warn).with(expected_message)
     end # it
 
   end # context #encodePB3-f

@@ -297,8 +297,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   rescue ArgumentError => e
     k = event.to_hash.keys.join(", ")
-    @logger.warn("Protobuf encoding error 1: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. \
-      Required fields in the protobuf definition are: #{k} and fields must not begin with @ sign. The event has been discarded.")
+    msg = "Protobuf encoding error 1: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: #{k}. Fields must not begin with @ sign. The event has been discarded."
+
+    @logger.warn(msg)
     nil
   rescue TypeError => e
     pb3_handle_type_errors(event, e, is_recursive_call, datahash)
