@@ -175,10 +175,7 @@ describe LogStash::Codecs::Protobuf do
 
 context "encodePB3-e" do
 
-    #### Test case 4: handle nil data ####################################################################################################################
-
-
-
+    #### Test case 4: handle nil data ##############################################################################################################
     subject do
       next LogStash::Codecs::Protobuf.new("class_name" => "something.rum_akamai.ProtoAkamai3Rum",
         "pb3_encoder_autoconvert_types" => false,
@@ -191,7 +188,7 @@ context "encodePB3-e" do
       "geo"=>{"organisation"=>"Jio", "rg"=>"DL", "netspeed"=>nil, "city"=>nil, "cc"=>"IN", "ovr"=>false, "postalcode"=>"110012", "isp"=>"Jio"}
     )
 
-    it "should ignore empty fields" do
+    it "should ignore nil fields" do
 
       subject.on_event do |event, data|
         expect(data).to be_a(String)
@@ -215,9 +212,15 @@ context "encodePB3-f" do
 
     #### Test case 5: handle additional fields (discard event without crashing pipeline) ####################################################################################################################
 
+    before :each do
+        allow(subject.logger).to receive(:warn)
+        allow(subject.logger).to receive(:error)
+    end
+
     subject do
       next LogStash::Codecs::Protobuf.new("class_name" => "something.rum_akamai.ProtoAkamai3Rum",
         "pb3_encoder_autoconvert_types" => false,
+        "pb3_encoder_drop_unknown_fields" => false,
         "include_path" => [pb_include_path + '/pb3/rum3_pb.rb' ], "protobuf_version" => 3)
     end
 
@@ -227,17 +230,63 @@ context "encodePB3-f" do
       "geo"=>{"organisation"=>"Jio", "rg"=>"DL", "netspeed"=>nil, "city"=>nil, "cc"=>"IN", "ovr"=>false, "postalcode"=>"110012", "isp"=>"Jio"}
     )
 
+    expected_message = "Protobuf encoding error 1: Argument error (#<ArgumentError: field bot is not found>). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: geo, @version, header, @timestamp, bot, domain. Fields must not begin with @ sign. The event has been discarded."
+
     it "should not return data" do
 
-      subject.on_event do |event, data|
-        expect("the on_event method should not be called").to eq("so this code should never be reached")
-      end
       subject.encode(event)
+      expect(subject.logger).to have_received(:warn).with(expected_message)
     end # it
 
   end # context #encodePB3-f
 
 
+
+
+context "encodePB3-g" do
+
+    #### Test case 6: ignore if additional fields are found ####################################################################################################################
+
+    before :each do
+        allow(subject.logger).to receive(:warn)
+        allow(subject.logger).to receive(:error)
+    end
+
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => "hello.world.ProtoFun",
+        "pb3_encoder_drop_unknown_fields" => true,
+        "include_path" => [pb_include_path + '/pb3/rum4_pb.rb' ], "protobuf_version" => 3)
+    end
+
+    event = LogStash::Event.new(
+      "locale" => "de", "this_field" => "doesn't exist in the definition",
+      "header" => {"sender_id" => "23"},
+      "geo"=> {"position"=> {"x" => 13, "y" => 46}, "city"=>"Oslo", "isp"=>"TeleNorge"},
+      "user_agent" => {"browser_name"=>"Firefox", "major"=>98,  "that_field" => "doesn't exist either"}
+    )
+
+    it "should discard unknown fields" do
+
+      subject.on_event do |event, data|
+        expect(data).to be_a(String)
+
+        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("hello.world.ProtoFun").msgclass
+        decoded_data = pb_builder.decode(data)
+        expect(decoded_data.locale ).to eq(event.get("locale"))
+        expect(decoded_data.geo.city ).to eq(event.get("geo")["city"])
+        expect(decoded_data.user_agent.browser_name ).to eq(event.get("user_agent")["browser_name"])
+        expect(decoded_data.user_agent.major ).to eq(event.get("user_agent")["major"])
+        expect(decoded_data.geo.isp ).to eq(event.get("geo")["isp"])
+        expect(decoded_data.geo.position.x ).to eq(event.get("geo")["position"]["x"])
+        expect(decoded_data.geo.position.y ).to eq(event.get("geo")["position"]["y"])
+        expect(decoded_data.header.sender_id ).to eq(event.get("header")['sender_id'] )
+
+      end
+      subject.encode(event)
+
+    end # it
+
+  end # context #encodePB3-g
 
 
 end # describe
