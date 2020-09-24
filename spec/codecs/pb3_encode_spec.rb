@@ -293,5 +293,46 @@ context "encodePB3-g" do
 
   end # context #encodePB3-g
 
+context "encodePB3-h" do
+
+    #### Test case 7: ignore if additional fields are found ####################################################################################################################
+
+    before :each do
+        allow(subject.logger).to receive(:warn)
+        allow(subject.logger).to receive(:error)
+    end
+
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => "EtidAkamai.ProtoAkamaiEtid",
+        "pb3_encoder_drop_unknown_fields" => true,
+        "include_path" => [pb_include_path + '/pb3/AkamaiEtid_pb.rb' ], "protobuf_version" => 3)
+    end
+
+    values = {"header"=>{"sender_id"=>"perf3", "unix_timestamp"=>1600932088}, "hostname"=>"de", "ghostip"=>"99.100.99.99", "cookie"=>"-", "status"=>200,
+      "etid"=>"78a6d967d38459c6b5db1ac89e", "warp"=>false, "timestamp"=>"2020-09-24T07:21:28.000Z",
+      "uri"=>"/www.something.de/api/v1/accommodation/1125058/complete-info.json?requestId=v92_09_3_aa_cg0a_de_DE_DE", "cache_status"=>3,
+      "user_agent"=>"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.99.99 Safari/537.36",
+      "referrer"=>"https://www.something.de/?aDateRange%5Barr%5D=2020-10-07&aDateRange%5Bdep%5D=2020-10-08&aPriceRange%5Bfrom%5D=0&aPriceRange%5Bto%5D=0&iRoomType=9&aRooms%5B0%5D%5Badults%5D=4&cpt2=10954%2F200&hasList=1&hasMap=0&bIsSeoPage=0&sortingId=1&slideoutsPageItemId=&iGeoDistanceLimit=20000&address=&addressGeoCode=&offset=0&ra=&overlayMode=",
+      "response_bytes"=>2546, "method"=>"GET", "transfer_time"=>11}
+
+    event = LogStash::Event.new( values )
+
+    it "should discard unknown fields" do
+
+      subject.on_event do |event, data|
+        expect(data).to be_a(String)
+
+        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("EtidAkamai.ProtoAkamaiEtid").msgclass
+        decoded_data = pb_builder.decode(data)
+        expect(decoded_data.hostname ).to eq(values["hostname"])
+
+
+      end
+      subject.encode(event)
+
+    end # it
+
+  end # context #encodePB3-h
+
 
 end # describe
