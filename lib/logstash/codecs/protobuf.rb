@@ -302,7 +302,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     nil
   rescue TypeError => e
     pb3_handle_type_errors(event, e, is_recursive_call, datahash)
-    nil
   rescue => e
     @logger.warn("PB3 encoder err 1.4: #{e}. Event dropped. Input data: #{datahash}. Backtrace: #{e.backtrace}")
     nil
@@ -315,13 +314,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       else
         if @pb3_encoder_autoconvert_types
           msg = "PB3 encoder err 2.2: Type error (#{e.inspect}). Will try to convert the data types. Original data: #{datahash}"
-          @logger.warn(msg)
+          @logger.info(msg)
           mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
-
           event = pb3_convert_mismatched_types(event, mismatches)
           # Add a (temporary) tag to handle the recursion stop
           pb3_add_tag(event, @pb3_typeconversion_tag )
           pb3_encode(event)
+
         else
           @logger.warn("PB3 encoder err 2.3: Type error (#{e.inspect}). The event has been discarded. Try setting pb3_encoder_autoconvert_types => true for automatic type conversion.")
         end
@@ -352,12 +351,18 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     if !pb_descriptor.nil?
       pb_builder = pb_descriptor.msgclass
       pb_obj = pb_builder.new({})
-      v = pb_obj.send(key)
-      if !v.nil?
-        v.class
-      else
+      begin
+        v = pb_obj.send(key)
+        if !v.nil?
+          v.class
+        else
+          nil
+        end
+      rescue => e
+        # This can happen when a fieldname is a reserved word, such as :method
         nil
       end
+
     end
   end
 
@@ -663,7 +668,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     raise e
   end
-
 
 
   def pb2_metadata_analyis(filename)

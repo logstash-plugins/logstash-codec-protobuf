@@ -295,7 +295,7 @@ context "encodePB3-g" do
 
 context "encodePB3-h" do
 
-    #### Test case 7: drop additional fields & convert field types ##########################################################################################
+    #### Test case 7: combi test: drop additional fields & convert field types ##########################################################################################
 
     before :each do
         allow(subject.logger).to receive(:warn)
@@ -328,13 +328,11 @@ context "encodePB3-h" do
 
       subject.on_event do |event, data|
         expect(data).to be_a(String)
-
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("akamai.ProtoAkamaiEtid").msgclass
         decoded_data = pb_builder.decode(data)
-        puts "decoded #{decoded}" # TODO remove
         expect(decoded_data.hostname ).to eq(values["hostname"])
         expect(decoded_data.transfer_time ).to eq(values["transfer_time"])
-        expect(decoded_data.header.unix_timestamp ).to eq(values["header"]["unix_timestamp"])
+        expect(decoded_data.header.unix_timestamp ).to eq(values["header"]["unix_timestamp"].to_i)
       end
       subject.encode(event)
 
