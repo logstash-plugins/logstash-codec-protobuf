@@ -2,10 +2,22 @@
 
 begin; require 'google/protobuf'; rescue LoadError; end
 
-begin; require 'header/header_pb'; rescue LoadError; end
 Google::Protobuf::DescriptorPool.generated_pool.build do
-  add_message "ProtoAkamaiEtid" do
-    optional :header, :message, 1, "Header"
+  add_message "logging.header.ProtoHeaderAkamai" do
+    optional :unix_timestamp, :int64, 1
+    optional :sender_id, :string, 2
+  end
+end
+
+module Logging
+  module Header
+    ProtoHeaderAkamai = Google::Protobuf::DescriptorPool.generated_pool.lookup("logging.header.ProtoHeaderAkamai").msgclass
+  end
+end
+
+Google::Protobuf::DescriptorPool.generated_pool.build do
+  add_message "akamai.ProtoAkamaiEtid" do
+    optional :header, :message, 1, "logging.header.ProtoHeaderAkamai"
     optional :version, :string, 2
     optional :method, :string, 3
     optional :uri, :string, 4
@@ -26,6 +38,6 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
 end
 
 
-module EtidAkamai
-    ProtoAkamaiEtid = Google::Protobuf::DescriptorPool.generated_pool.lookup("EtidAkamai.ProtoAkamaiEtid").msgclass
+module Akamai
+    ProtoAkamaiEtid = Google::Protobuf::DescriptorPool.generated_pool.lookup("akamai.ProtoAkamaiEtid").msgclass
 end
