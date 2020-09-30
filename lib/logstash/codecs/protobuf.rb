@@ -322,7 +322,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       else
         if @pb3_encoder_autoconvert_types
           msg = "PB3 encoder err 2.2: Type error (#{e.inspect}). Will try to convert the data types. Original data: #{datahash}"
-          @logger.info(msg)
+          @logger.debug(msg)
           mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
           event = pb3_convert_mismatched_types(event, mismatches)
           # Add a (temporary) tag to handle the recursion stop
