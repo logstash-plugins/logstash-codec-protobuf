@@ -201,6 +201,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         @pb_builder = pb2_create_instance(class_name)
       end
     end
+
+    if @protobuf_version == 3
+      include_path.each { |path| pb3_metadata_analyis(path) } if include_path.length > 0
+      pb3_metadata_analyis(@class_file) if !@class_file.empty?
+    else
+      include_path.each { |path| pb2_metadata_analyis(path) } if include_path.length > 0
+      pb2_metadata_analyis(@class_file) if !@class_file.empty?
+    end
   end
 
   # Pipelines using this plugin cannot be reloaded.
@@ -519,7 +527,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     datahash = datahash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x}
 
     if @pb3_encoder_drop_unknown_fields
-      datahash = datahash.select { |k, v| field_exists_in_pb3_definition(k, pb_class) }
+      datahash = datahash.select { |k, v| pb3_field_defined(k, pb_class) }
     end
 
     datahash.each do |key, value|
@@ -531,18 +539,22 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
     datahash
   rescue => e
-    @logger.warn("PB3 encoder err 5: #{e}. Data: #{datahash}. Parent class: #{pb_class}")
+    @logger.warn("PB3 encoder err 10: #{e}. Data: #{datahash}. Parent class: #{pb_class}. #{e.backtrace}")
     datahash
   end
 
 
-  def field_exists_in_pb3_definition(field_name, pb_class)
-
+  def pb3_field_defined(field_name, pb_class)
     begin
-      field_exists = @metainfo_existingfields[pb_class].include?(field_name.to_s)
-      field_exists
+      if @metainfo_existingfields.key? pb_class
+        field_exists = @metainfo_existingfields[pb_class].include?(field_name.to_s)
+        field_exists
+      else
+         @logger.warn("PB3 encoder err 3.1: meta info not found for field: #{field_name} of class: #{pb_class} in #{@metainfo_existingfields}")
+      true # when in doubt assume that the field is there
+      end
     rescue => e
-      @logger.warn("PB3 encoder err 3.1: #{e}. Key: #{key}. Parent class: #{pb_class}.")
+      @logger.warn("PB3 encoder err 3.2: #{e}. Key: #{field_name}. Parent class: #{pb_class}. #{@metainfo_existingfields}")
       true # when in doubt assume that the field is there
     end
   end
@@ -631,13 +643,20 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb3_metadata_analyis(filename)
-
-    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_require = /\s*require \'(?<require_file>.+?)\'\s*/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<name>.+),(\s*):(?<type>\w+),(\s*)(?<position>\d+)(, \"(?<enum_class>.*?)\")?/
     class_name = ""
     type = ""
     field_name = ""
+    includes = []
     File.readlines(filename).each do |line|
+      if ! (line =~ regex_require).nil?
+        required = $1
+        unless required == "google/protobuf"
+          includes << required
+        end
+      end # if
       if ! (line =~ regex_class_name).nil?
         class_name = $1
         @metainfo_messageclasses[class_name] = {}
@@ -647,12 +666,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         field_name = $1
         type = $2
         field_class_name = $4
-        if @pb3_encoder_drop_unknown_fields
-          if !@metainfo_existingfields.key? class_name
-            @metainfo_existingfields[class_name] = []
-          end
-          @metainfo_existingfields[class_name] << field_name
+
+        if !@metainfo_existingfields.key? class_name
+          @metainfo_existingfields[class_name] = []
         end
+        @metainfo_existingfields[class_name] << field_name
+
         if type == "message"
           @metainfo_messageclasses[class_name][field_name] = field_class_name
         elsif type == "enum"
@@ -660,9 +679,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         end
       end # if
     end # readlines
+
     if class_name.nil?
       @logger.warn("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
+    end
+
+    includes.each do |f|
+      pb3_metadata_analyis "#{@protobuf_root_directory}/#{f}.rb"
     end
   rescue Exception => e
     @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
@@ -739,13 +763,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           raise e
         end
       end
-
-      if @protobuf_version == 3
-        pb3_metadata_analyis(filename)
-      else
-        pb2_metadata_analyis(filename)
-      end
-
     else
       @logger.warn("Not a ruby file: " + filename)
     end
