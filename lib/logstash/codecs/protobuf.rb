@@ -561,22 +561,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       end
 
       if val.is_a?(Array)
-        puts "array found #{key} of size #{val.length}\n#{val}" # TODO remove
         new_list = []
         val.each { |v|
           if v.is_a?(Hash)
-            puts "imma hash"
             field_pb_class = @metainfo_messageclasses[pb_class][key.to_s]
-            puts "my class is #{field_pb_class}"
             v2 = pb3_prepare_for_encoding(v, field_pb_class, parent_fields)
-            puts "success v2"
             new_list << v2
           else
             new_list << v
           end
-
         }
-
         datahash[key] = new_list
       end # val is array
     end # datahash.each
@@ -591,10 +585,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     begin
       if @metainfo_existingfields.key? pb_class
         field_exists = @metainfo_existingfields[pb_class].include?(field_name.to_s)
-        puts "Field #{field_name} exists in class #{pb_class} => #{field_exists}"
-        if ! field_exists
-          puts @metainfo_existingfields
-        end
+
         field_exists
       else
          @logger.warn("PB3 encoder err 3.1: meta info not found for field: #{field_name} of class: #{pb_class} in #{@metainfo_existingfields}")

@@ -577,10 +577,8 @@ context "encodePB3-8" do
         expect(data).to be_a(String)
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
         decoded_data = pb_builder.decode(data)
-        puts "DECODED" # TODO remove
         expect(decoded_data.version ).to eq(values[:version].to_s)
         expect(decoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
-
       end
       subject.encode(event)
 
