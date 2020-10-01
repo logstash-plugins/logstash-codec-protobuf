@@ -461,68 +461,6 @@ context "encodePB3-8" do
     end # it
 
   end # context #encodePB3-10
-  context "encodePB3-10" do
-
-    #### Test case 10: test type conversion in nested fields ##########################################################################################
-
-    before :each do
-        allow(subject.logger).to receive(:warn)
-        allow(subject.logger).to receive(:error)
-    end
-
-    class_name = "foobar.akamai_siem.AkamaiSiemEvent"
-
-    subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => class_name,
-        "pb3_encoder_autoconvert_types" => true,
-        "pb3_encoder_drop_unknown_fields" => true,
-        "class_file" => [ pb_include_path + '/pb3/AkamaiSiem_pb.rb' ],
-        "protobuf_version" => 3,
-        "protobuf_root_directory" => File.expand_path(File.dirname(__FILE__) + pb_include_path + '/pb3/'))
-    end
-
-    values ={:httpMessage=>
-              { :host=>"cdn-hs-hkg.foobar.com", :bytes=>16130, :start=>"1601548038", :httpMethod=>"POST", :status=>200,
-                :tls=>"tls1.3", :responseHeaders=>"Content-Type: application/json; Access-Control-Allow-Origin: *\r\n",
-                :requestId=>"29391f4", :port=>443, :path=>"/graphql", :protocol=>"h2",
-                :requestHeaders=>"Content-Type: application/json\r\nAccept: */*\r\n"},
-            :header=>{:unix_timestamp=>"1601548038"},
-            :attackData=>[
-                { :configId=>"123", :clientIP=>"007:0815",
-                  :rules_translated=>[
-                    {"rule"=>"BOT-0815", "ruleTag"=>"tag1", "ruleAction"=>"monitor", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-91"}
-                    ],
-                  :policyId=>"def", :ruleSelectors=>"foo"
-                }, # introducing wrong types for configID and clientIP
-                { :configId=> 900, :clientIP=> 1000,
-                  :rules_translated=>[
-                    {"rule"=>"BOT-4711", "ruleTag"=>"tag2", "ruleAction"=>"deny", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-92"}
-                    ],
-                  :policyId=>"abc", :ruleSelectors=>"bar"
-                }
-            ],
-            :geo=>{:country=>"MY", :regionCode=>"", :continent=>"AS", :city=>"KUALALUMPUR",:asn=>10030},
-            :version=>1
-            }
-
-    event = LogStash::Event.new( values )
-
-    it "should convert types in nested fields" do
-
-      subject.on_event do |event, data|
-        expect(data).to be_a(String)
-        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-        decoded_data = pb_builder.decode(data)
-        puts "DECODED" # TODO remove
-        expect(decoded_data.version ).to eq(values[:version].to_s)
-        expect(decoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
-
-      end
-      subject.encode(event)
-
-    end # it
-
-  end # context #encodePB3-10
 
   context "encodePB3-11" do
 
