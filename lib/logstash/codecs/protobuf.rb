@@ -300,58 +300,74 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     if @pb_builder.nil?
       @logger.warn("PB3 encoder err 1.2: empty protobuf builder for class #{@class_name}")
     end
+    # puts "Hello 3" # TODO remove
     pb_obj = @pb_builder.new(datahash)
+    # puts "Hello 4" # TODO remove
     @pb_builder.encode(pb_obj)
-
   rescue ArgumentError => e
+    # puts "Hello 11 #{e} #{datahash}" # TODO remove
     k = event.to_hash.keys.join(", ")
     msg = "PB3 encoder err 1.3: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: #{k}. Fields must not begin with @ sign. The event has been discarded."
     @logger.warn(msg)
     nil
   rescue TypeError => e
-    pb3_handle_type_errors(event, e, is_recursive_call, datahash)
+    # puts "Hello 5" # TODO remove
+    if is_recursive_call
+      # puts "Hello 5.1" # TODO remove
+      @logger.warn("PB3 encoder err 1.4: Type error (#{e.inspect}). Some types could not be converted. The event has been discarded. Original data: #{datahash}")
+      nil
+    else
+      # puts "Hello 5.2" # TODO remove
+      pb3_handle_type_errors(event, datahash)
+    end
   rescue => e
-    @logger.warn("PB3 encoder err 1.4: #{e}. Event dropped. Input data: #{datahash}. Backtrace: #{e.backtrace}")
+    # puts "Hello 10 #{e}" # TODO remove
+    @logger.warn("PB3 encoder err 1.5: #{e}. Event dropped. Input data: #{datahash}. Backtrace: #{e.backtrace}")
     nil
   end
 
-  def pb3_handle_type_errors(event, e, is_recursive_call, datahash)
+  def pb3_handle_type_errors(event, datahash)
+    # puts "Hello 6" # TODO remove
     begin
-      if is_recursive_call
-        @logger.warn("PB3 encoder err 2.1: Type error (#{e.inspect}). Some types could not be converted. The event has been discarded. Type mismatches: #{mismatches}.")
+      if @pb3_encoder_autoconvert_types
+        # puts "Hello 7 incoming #{datahash}" # TODO remove
+        mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
+        # puts "Hello 8 #{mismatches}" # TODO remove
+        event = pb3_convert_mismatched_types(event, mismatches)
+        # puts "Hello 9 #{event.to_hash}" # TODO remove
+        # Add a (temporary) tag to handle the recursion stop
+        pb3_add_tag(event, @pb3_typeconversion_tag )
+        pb3_encode(event)
       else
-        if @pb3_encoder_autoconvert_types
-          msg = "PB3 encoder err 2.2: Type error (#{e.inspect}). Will try to convert the data types. Original data: #{datahash}"
-          @logger.debug(msg)
-          mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
-          event = pb3_convert_mismatched_types(event, mismatches)
-          # Add a (temporary) tag to handle the recursion stop
-          pb3_add_tag(event, @pb3_typeconversion_tag )
-          pb3_encode(event)
-
-        else
-          @logger.warn("PB3 encoder err 2.3: Type error (#{e.inspect}). The event has been discarded. Try setting pb3_encoder_autoconvert_types => true for automatic type conversion.")
-        end
+        @logger.warn("PB3 encoder err 2.3: Type error (#{e.inspect}). The event has been discarded. Try setting pb3_encoder_autoconvert_types => true for automatic type conversion.")
+        nil
       end
     rescue TypeError => e
       if @pb3_encoder_autoconvert_types
-        @logger.warn("PB3 encoder err 2.4.1: (#{e.inspect}). Failed to convert data types. The event has been discarded. original data: #{datahash}")
+        @logger.warn("PB3 encoder err 2.4.1: (#{e.inspect}). Failed to convert data types. The event has been discarded. Original data: #{datahash}")
       else
         @logger.warn("PB3 encoder err 2.4.2: (#{e.inspect}). The event has been discarded.")
       end
-    rescue => ex
-      @logger.warn("PB3 encoder err 2.5: (#{e.inspect}). The event has been discarded. Auto-typecasting was on: #{@pb3_encoder_autoconvert_types}")
+      nil
+    rescue => e
+      # puts "PB3 encoder error 2.5: (#{e.inspect}). Original data: #{datahash} #{e.backtrace}" # TODO remove
+      @logger.warn("PB3 encoder err 2.5: (#{e.inspect}). The event has been discarded. Auto-typecasting was on: #{@pb3_encoder_autoconvert_types}. Original data: #{datahash}")
+      nil
     end
   end # pb3_handle_type_errors
 
   def pb3_get_type_mismatches(data, key_prefix, pb_class)
-    mismatches = []
-    data.to_hash.each do |key, value|
-        expected_type = pb3_get_expected_type(key, pb_class)
-        r = pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
-        mismatches.concat(r)
-    end # data.each
-    mismatches
+    begin
+      mismatches = []
+      data.to_hash.each do |key, value|
+          expected_type = pb3_get_expected_type(key, pb_class)
+          r = pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
+          mismatches.concat(r)
+      end # data.each
+      mismatches
+    rescue => e
+      @logger.warn("PB3 encoder err 11: (#{e.inspect}). Key: #{key}, class: #{pb_class}")
+    end
   end
 
   def pb3_get_expected_type(key, pb_class)
@@ -383,6 +399,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       when ::Hash, Google::Protobuf::MessageExts
         is_mismatch = false
         descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key)
+        if descriptor.nil?
+          # puts "Could not find descriptor for key #{key}, prefix #{key_prefix} in class #{pb_class}"
+          return []
+        end
         if !descriptor.subtype.nil?
           class_of_nested_object = pb3_get_descriptorpool_name(descriptor.subtype.msgclass)
           new_prefix = "#{key}."
