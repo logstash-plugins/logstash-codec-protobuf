@@ -300,41 +300,41 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     if @pb_builder.nil?
       @logger.warn("PB3 encoder err 1.2: empty protobuf builder for class #{@class_name}")
     end
-    # puts "Hello 3" # TODO remove
+    puts "Hello 3" # TODO remove
     pb_obj = @pb_builder.new(datahash)
-    # puts "Hello 4" # TODO remove
+    puts "Hello 4" # TODO remove
     @pb_builder.encode(pb_obj)
   rescue ArgumentError => e
-    # puts "Hello 11 #{e} #{datahash}" # TODO remove
+    puts "Hello 11 #{e} #{datahash}" # TODO remove
     k = event.to_hash.keys.join(", ")
     msg = "PB3 encoder err 1.3: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: #{k}. Fields must not begin with @ sign. The event has been discarded."
     @logger.warn(msg)
     nil
   rescue TypeError => e
-    # puts "Hello 5" # TODO remove
+    puts "Hello 5" # TODO remove
     if is_recursive_call
-      # puts "Hello 5.1" # TODO remove
+      puts "Hello 5.1" # TODO remove
       @logger.warn("PB3 encoder err 1.4: Type error (#{e.inspect}). Some types could not be converted. The event has been discarded. Original data: #{datahash}")
       nil
     else
-      # puts "Hello 5.2" # TODO remove
+      puts "Hello 5.2" # TODO remove
       pb3_handle_type_errors(event, datahash)
     end
   rescue => e
-    # puts "Hello 10 #{e}" # TODO remove
+    puts "Hello 10 #{e}" # TODO remove
     @logger.warn("PB3 encoder err 1.5: #{e}. Event dropped. Input data: #{datahash}. Backtrace: #{e.backtrace}")
     nil
   end
 
   def pb3_handle_type_errors(event, datahash)
-    # puts "Hello 6" # TODO remove
+    puts "Hello 6" # TODO remove
     begin
       if @pb3_encoder_autoconvert_types
-        # puts "Hello 7 incoming #{datahash}" # TODO remove
+        puts "Hello 7 incoming #{datahash}" # TODO remove
         mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
-        # puts "Hello 8 #{mismatches}" # TODO remove
+        puts "Hello 8 #{mismatches}" # TODO remove
         event = pb3_convert_mismatched_types(event, mismatches)
-        # puts "Hello 9 #{event.to_hash}" # TODO remove
+        puts "Hello 9 #{event.to_hash}" # TODO remove
         # Add a (temporary) tag to handle the recursion stop
         pb3_add_tag(event, @pb3_typeconversion_tag )
         pb3_encode(event)
@@ -350,7 +350,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       end
       nil
     rescue => e
-      # puts "PB3 encoder error 2.5: (#{e.inspect}). Original data: #{datahash} #{e.backtrace}" # TODO remove
+      puts "PB3 encoder error 2.5: (#{e.inspect}). Original data: #{datahash} #{e.backtrace}" # TODO remove
       @logger.warn("PB3 encoder err 2.5: (#{e.inspect}). The event has been discarded. Auto-typecasting was on: #{@pb3_encoder_autoconvert_types}. Original data: #{datahash}")
       nil
     end
@@ -400,7 +400,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         is_mismatch = false
         descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key)
         if descriptor.nil?
-          # puts "Could not find descriptor for key #{key}, prefix #{key_prefix} in class #{pb_class}"
+          puts "Could not find descriptor for key #{key}, prefix #{key_prefix} in class #{pb_class}"
           return []
         end
         if !descriptor.subtype.nil?
@@ -538,6 +538,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def pb3_prepare_for_encoding(datahash, pb_class, parent_fields)
+    puts "pb3_prepare_for_encoding #{pb_class} #{parent_fields} #{datahash}"
+    # TODO parent_fields might be removed
+
     # 0) Remove empty fields.
     datahash = datahash.select { |key, value| !value.nil? }
 
@@ -550,13 +553,33 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       datahash = datahash.select { |k, v| pb3_field_defined(k, pb_class) }
     end
 
-    datahash.each do |key, value|
-      if value.is_a?(Hash)
+    datahash.each do |key, val|
+      if val.is_a?(Hash)
         new_parents = parent_fields.clone().append(key)
         field_pb_class = @metainfo_messageclasses[pb_class][key.to_s]
-        datahash[key] = pb3_prepare_for_encoding(value, field_pb_class, new_parents)
+        datahash[key] = pb3_prepare_for_encoding(val, field_pb_class, new_parents)
       end
-    end
+
+      if val.is_a?(Array)
+        puts "array found #{key} of size #{val.length}\n#{val}" # TODO remove
+        new_list = []
+        val.each { |v|
+          if v.is_a?(Hash)
+            puts "imma hash"
+            field_pb_class = @metainfo_messageclasses[pb_class][key.to_s]
+            puts "my class is #{field_pb_class}"
+            v2 = pb3_prepare_for_encoding(v, field_pb_class, parent_fields)
+            puts "success v2"
+            new_list << v2
+          else
+            new_list << v
+          end
+
+        }
+
+        datahash[key] = new_list
+      end # val is array
+    end # datahash.each
     datahash
   rescue => e
     @logger.warn("PB3 encoder err 10: #{e}. Data: #{datahash}. Parent class: #{pb_class}. #{e.backtrace}")
@@ -568,6 +591,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     begin
       if @metainfo_existingfields.key? pb_class
         field_exists = @metainfo_existingfields[pb_class].include?(field_name.to_s)
+        puts "Field #{field_name} exists in class #{pb_class} => #{field_exists}"
+        if ! field_exists
+          puts @metainfo_existingfields
+        end
         field_exists
       else
          @logger.warn("PB3 encoder err 3.1: meta info not found for field: #{field_name} of class: #{pb_class} in #{@metainfo_existingfields}")
