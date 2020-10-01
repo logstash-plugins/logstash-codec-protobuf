@@ -364,20 +364,15 @@ context "encodePB3-8" do
                 :requestId=>"29391f4", :port=>443, :path=>"/graphql", :protocol=>"h2",
                 :requestHeaders=>"Content-Type: application/json\r\nAccept: */*\r\n"},
             :header=>{:unix_timestamp=>"1601548038"},
-            :attackData=>[
+            :attackData=>
                 { :configId=>"123", :clientIP=>"007:0815",
                   :rules_translated=>[
-                    {"rule"=>"BOT-0815", "ruleTag"=>"tag1", "ruleAction"=>"monitor", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-91"}
+                    {"rule"=>"BOT-0815", "ruleTag"=>"tag1", "ruleAction"=>"monitor", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-91"},
+                    {"rule"=>"BOT-0815", "ruleTag"=>"tag2", "ruleAction"=>"tarpit", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-91"},
+                    {"rule"=>"BOT-0815", "ruleTag"=>"tag3", "ruleAction"=>"deny", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-91"},
                     ],
                   :policyId=>"def", :ruleSelectors=>"foo"
                 },
-                { :configId=> "900", :clientIP=> "1000",
-                  :rules_translated=>[
-                    {"rule"=>"BOT-4711", "ruleTag"=>"tag2", "ruleAction"=>"deny", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-92"}
-                    ],
-                  :policyId=>"abc", :ruleSelectors=>"bar"
-                }
-            ],
             :geo=>{:country=>"MY", :regionCode=>"", :continent=>"AS", :city=>"KUALALUMPUR",:asn=>10030},
             :version=>1
             }
@@ -425,20 +420,12 @@ context "encodePB3-8" do
                 :requestId=>"29391f4", :port=>443, :path=>"/graphql", :protocol=>"h2",
                 :requestHeaders=>"Content-Type: application/json\r\nAccept: */*\r\n"},
             :header=>{:unix_timestamp=>"1601548038"},
-            :attackData=>[
-                { :configId=>"123", :clientIP=>"007:0815",
-                  :rules_translated=>[
-                    {"rule"=>"BOT-0815", "ruleTag"=>"tag1", "ruleAction"=>"monitor", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-91"}
-                    ],
-                  :policyId=>"def", :ruleSelectors=>"foo"
-                }, # introducing wrong types for configID and clientIP
-                { :configId=> 900, :clientIP=> 1000,
+            :attackData=>{ :configId=> 900, :clientIP=> 1000,
                   :rules_translated=>[
                     {"rule"=>"BOT-4711", "ruleTag"=>"tag2", "ruleAction"=>"deny", "ruleMessage"=>"Hello World", "ruleData"=>"BDM-92"}
                     ],
                   :policyId=>"abc", :ruleSelectors=>"bar"
-                }
-            ],
+                },
             :geo=>{:country=>"MY", :regionCode=>"", :continent=>"AS", :city=>"KUALALUMPUR",:asn=>10030},
             :version=>1
             }
@@ -488,21 +475,14 @@ context "encodePB3-8" do
                 :requestId=>"29391f4", :port=>443, :path=>"/graphql", :protocol=>"h2",
                 :requestHeaders=>"Content-Type: application/json\r\nAccept: */*\r\n"},
             :header=>{:unix_timestamp=>"1601548038", "sender_id" => 4711},
-            :attackData=>[
+            :attackData=>
                 { :configId=>"123", :clientIP=>"007:0815",
                   :rules_translated=>[
-                    {"rule"=>"BOT-0815", "ruleTag"=>"tag1", "ruleAction"=>"monitor"}
+                    {"rule"=>"BOT-0815", "ruleTag"=>"tag1", "ruleAction"=>"monitor"},
+                    {"rule"=>"BOT-0815", "ruleTag"=>"tag2", "ruleAction"=>"tarpit"}
                     ],
                   :policyId=>"def", "invalidFieldName"=>"foo", :invalidFieldName2=>"bar"
                 },
-                { :configId=> "900", :clientIP=> "1000",
-                  :rules_translated=>[
-                    {"rule"=>"BOT-4711", "ruleTag"=>"tag2", "ruleAction"=>"deny",
-                      "fieldDoesNotExist"=>"Hello World", "ruleData"=>"BDM-92"}
-                    ],
-                  :policyId=>"abc", :ruleSelectors=>"bar"
-                }
-            ],
             :geo=>{:country=>"MY", :regionCode=>"", :continent=>"AS", :city=>"KUALALUMPUR",:asn=>10030},
             :version=>1
             }

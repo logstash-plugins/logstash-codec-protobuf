@@ -22,7 +22,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     optional :connector_id, :string, 3
     optional :geo, :message, 4, "foobar.akamai_siem.AkamaiSiemGeo"
     optional :httpMessage, :message, 5, "foobar.akamai_siem.AkamaiSiemHttpMessage"
-    repeated :attackData, :message, 6, "foobar.akamai_siem.AkamaiSiemAttackData"
+    optional :attackData, :message, 6, "foobar.akamai_siem.AkamaiSiemAttackData"
   end
   add_message "foobar.akamai_siem.AkamaiSiemHttpMessage" do
     optional :host, :string, 1
