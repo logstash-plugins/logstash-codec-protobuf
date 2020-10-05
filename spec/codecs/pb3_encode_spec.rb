@@ -24,20 +24,22 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return protobuf encoded data for testcase 1" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
-
+        encoded = true
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.name ).to eq(event.get("name") )
-        expect(decoded_data.age ).to eq(event.get("age") )
-        expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
-        expect(decoded_data.fur_colour ).to eq(:PINK)
-        expect(decoded_data.favourite_numbers ).to eq(event.get("favourite_numbers") )
-        expect(decoded_data.favourite_colours ).to eq([:BLUE,:WHITE] )
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.name ).to eq(event.get("name") )
+        expect(encoded_data.age ).to eq(event.get("age") )
+        expect(encoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
+        expect(encoded_data.fur_colour ).to eq(:PINK)
+        expect(encoded_data.favourite_numbers ).to eq(event.get("favourite_numbers") )
+        expect(encoded_data.favourite_colours ).to eq([:BLUE,:WHITE] )
       end # subject.on_event
 
       subject.encode(event1)
+      insist { encoded } == true
     end # it
 
   end # context
@@ -58,24 +60,26 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return protobuf encoded data for testcase 2" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-        decoded_data = pb_builder.decode(data)
-
-        expect(decoded_data.name ).to eq(event.get("name") )
-        expect(decoded_data.age ).to eq(event.get("age") )
-        expect(decoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
-        expect(decoded_data.mother.name ).to eq(event.get("mother")["name"] )
-        expect(decoded_data.mother.age ).to eq(event.get("mother")["age"] )
-        expect(decoded_data.father.name ).to eq(event.get("father")["name"] )
-        expect(decoded_data.father.age ).to eq(event.get("father")["age"] )
-        expect(decoded_data.father.fur_colour ).to eq(:SILVER)
+        encoded_data = pb_builder.decode(data)
+        encoded = true
+        expect(encoded_data.name ).to eq(event.get("name") )
+        expect(encoded_data.age ).to eq(event.get("age") )
+        expect(encoded_data.is_pegasus ).to eq(event.get("is_pegasus") )
+        expect(encoded_data.mother.name ).to eq(event.get("mother")["name"] )
+        expect(encoded_data.mother.age ).to eq(event.get("mother")["age"] )
+        expect(encoded_data.father.name ).to eq(event.get("father")["name"] )
+        expect(encoded_data.father.age ).to eq(event.get("father")["age"] )
+        expect(encoded_data.father.fur_colour ).to eq(:SILVER)
 
 
       end # subject4.on_event
       subject.encode(event)
+      insist { encoded } == true
     end # it
 
   end # context
@@ -103,20 +107,22 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return protobuf encoded data for testcase 3" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
 
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("something.rum_akamai.ProtoAkamaiRum").msgclass
-        decoded_data = pb_builder.decode(data)
-
-        expect(decoded_data.domain ).to eq(event.get("domain") )
-        expect(decoded_data.dom.ext ).to eq(event.get("dom")["ext"] )
-        expect(decoded_data.user_agent.type ).to eq(event.get("user_agent")["type"] )
-        expect(decoded_data.geo.rg ).to eq(event.get("geo")["rg"] )
+        encoded_data = pb_builder.decode(data)
+        encoded = true
+        expect(encoded_data.domain ).to eq(event.get("domain") )
+        expect(encoded_data.dom.ext ).to eq(event.get("dom")["ext"] )
+        expect(encoded_data.user_agent.type ).to eq(event.get("user_agent")["type"] )
+        expect(encoded_data.geo.rg ).to eq(event.get("geo")["rg"] )
 
 
       end # subject4.on_event
       subject.encode(event)
+      insist { encoded } == true
     end # it
   end # context #encodePB3-3
 
@@ -153,20 +159,22 @@ describe LogStash::Codecs::Protobuf do
 
     it "should fix datatypes to match the protobuf definition" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
-
+        encoded = true
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("something.rum_akamai.ProtoAkamai2Rum").msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.domain ).to eq(event.get("domain") )
-        expect(decoded_data.user_agent.major).to eq(74)
-        expect(decoded_data.dom.ext).to eq(47)
-        expect(decoded_data.geo.ovr).to eq(false)
-        expect(decoded_data.header.sender_id).to eq("1")
-        expect(decoded_data.http_referer).to eq("1234")
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.domain ).to eq(event.get("domain") )
+        expect(encoded_data.user_agent.major).to eq(74)
+        expect(encoded_data.dom.ext).to eq(47)
+        expect(encoded_data.geo.ovr).to eq(false)
+        expect(encoded_data.header.sender_id).to eq("1")
+        expect(encoded_data.http_referer).to eq("1234")
 
       end
       subject.encode(event)
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-4
@@ -189,18 +197,20 @@ context "encodePB3-5" do
 
     it "should ignore nil fields" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
-
+        encoded = true
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("something.rum_akamai.ProtoAkamai3Rum").msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.geo.organisation ).to eq(event.get("geo")["organisation"])
-        expect(decoded_data.geo.ovr ).to eq(event.get("geo")["ovr"])
-        expect(decoded_data.geo.postalcode ).to eq(event.get("geo")["postalcode"])
-        expect(decoded_data.header.sender_id ).to eq(event.get("header")['sender_id'] )
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.geo.organisation ).to eq(event.get("geo")["organisation"])
+        expect(encoded_data.geo.ovr ).to eq(event.get("geo")["ovr"])
+        expect(encoded_data.geo.postalcode ).to eq(event.get("geo")["postalcode"])
+        expect(encoded_data.header.sender_id ).to eq(event.get("header")['sender_id'] )
 
       end
       subject.encode(event)
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-5
@@ -232,14 +242,16 @@ context "encodePB3-6" do
     expected_message = "Protobuf encoding error 1: Argument error (#<ArgumentError: field bot is not found>). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: geo, @version, header, @timestamp, bot, domain. Fields must not begin with @ sign. The event has been discarded."
 
     it "should not return data" do
+      encoded = false
 
       subject.on_event do |event, data|
+        encoded = true
         expect("the on_event method should not be called").to eq("so this code should never be reached")
       end
 
       subject.encode(event)
       # expect(subject.logger).to have_received(:warn).with(expected_message) -- this will fail if the list of fiels is generated in the wrong order.
-
+      insist { encoded } == false
     end # it
 
   end # context #encodePB3-6
@@ -271,23 +283,24 @@ context "encodePB3-7" do
 
     it "should discard unknown fields" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
-
+        encoded = true
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("hello.world.ProtoFun").msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.locale ).to eq(event.get("locale"))
-        expect(decoded_data.geo.city ).to eq(event.get("geo")["city"])
-        expect(decoded_data.user_agent.browser_name ).to eq(event.get("user_agent")["browser_name"])
-        expect(decoded_data.user_agent.major ).to eq(event.get("user_agent")["major"])
-        expect(decoded_data.geo.isp ).to eq(event.get("geo")["isp"])
-        expect(decoded_data.geo.position.x ).to eq(event.get("geo")["position"]["x"])
-        expect(decoded_data.geo.position.y ).to eq(event.get("geo")["position"]["y"])
-        expect(decoded_data.header.sender_id ).to eq(event.get("header")['sender_id'] )
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.locale ).to eq(event.get("locale"))
+        expect(encoded_data.geo.city ).to eq(event.get("geo")["city"])
+        expect(encoded_data.user_agent.browser_name ).to eq(event.get("user_agent")["browser_name"])
+        expect(encoded_data.user_agent.major ).to eq(event.get("user_agent")["major"])
+        expect(encoded_data.geo.isp ).to eq(event.get("geo")["isp"])
+        expect(encoded_data.geo.position.x ).to eq(event.get("geo")["position"]["x"])
+        expect(encoded_data.geo.position.y ).to eq(event.get("geo")["position"]["y"])
+        expect(encoded_data.header.sender_id ).to eq(event.get("header")['sender_id'] )
 
       end
       subject.encode(event)
-
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-7
@@ -302,7 +315,7 @@ context "encodePB3-8" do
     end
 
     subject do
-      next LogStash::Codecs::Protobuf.new("class_name" => "akamai.ProtoAkamaiSiem",
+      next LogStash::Codecs::Protobuf.new("class_name" => "akamai.ProtoAkamaiEtid",
         "pb3_encoder_autoconvert_types" => true,
         "pb3_encoder_drop_unknown_fields" => true,
 
@@ -324,16 +337,18 @@ context "encodePB3-8" do
 
     it "should discard unknown fields" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
+        encoded = true
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup("akamai.ProtoAkamaiEtid").msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.hostname ).to eq(values["hostname"])
-        expect(decoded_data.transfer_time ).to eq(values["transfer_time"])
-        expect(decoded_data.header.unix_timestamp ).to eq(values["header"]["unix_timestamp"].to_i)
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.hostname ).to eq(values["hostname"])
+        expect(encoded_data.transfer_time ).to eq(values["transfer_time"])
+        expect(encoded_data.header.unix_timestamp ).to eq(values["header"]["unix_timestamp"].to_i)
       end
       subject.encode(event)
-
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-8
@@ -381,15 +396,17 @@ context "encodePB3-8" do
 
     it "should not trigger a #<TypeError: Expected number type for integral field.>" do
 
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.version ).to eq(values[:version].to_s)
-        expect(decoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
+        encoded_data = pb_builder.decode(data)
+        encoded = true
+        expect(encoded_data.version ).to eq(values[:version].to_s)
+        expect(encoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
       end
       subject.encode(event)
-
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-9
@@ -433,18 +450,19 @@ context "encodePB3-8" do
     event = LogStash::Event.new( values )
 
     it "should convert types in nested fields" do
+      encoded = false
 
       subject.on_event do |event, data|
         expect(data).to be_a(String)
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-        decoded_data = pb_builder.decode(data)
-        puts "DECODED" # TODO remove
-        expect(decoded_data.version ).to eq(values[:version].to_s)
-        expect(decoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
+        encoded_data = pb_builder.decode(data)
+        encoded = true
+        expect(encoded_data.version ).to eq(values[:version].to_s)
+        expect(encoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
 
       end
       subject.encode(event)
-
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-10
@@ -490,16 +508,18 @@ context "encodePB3-8" do
     event = LogStash::Event.new( values )
 
     it "should convert types in nested fields" do
-
+      encoded = false
       subject.on_event do |event, data|
         expect(data).to be_a(String)
+        encoded = true
         pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-        decoded_data = pb_builder.decode(data)
-        expect(decoded_data.version ).to eq(values[:version].to_s)
-        expect(decoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.version ).to eq(values[:version].to_s)
+        expect(encoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
+
       end
       subject.encode(event)
-
+      insist { encoded } == true
     end # it
 
   end # context #encodePB3-11
