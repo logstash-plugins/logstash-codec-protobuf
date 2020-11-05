@@ -524,4 +524,62 @@ context "encodePB3-8" do
 
   end # context #encodePB3-11
 
+
+  context "encodePB3-12" do
+
+    #### Test case 12: test pb3_encoder_drop_unknown_fields in deeply nested fields ##########################################################################################
+
+    before :each do
+        allow(subject.logger).to receive(:warn)
+        allow(subject.logger).to receive(:error)
+    end
+
+    class_name = "foobar.akamai_siem.AkamaiSiemEvent"
+
+    subject do
+      next LogStash::Codecs::Protobuf.new("class_name" => class_name,
+        "pb3_encoder_autoconvert_types" => true,
+        "pb3_encoder_drop_unknown_fields" => true,
+        "class_file" => [ pb_include_path + '/pb3/AkamaiSiem_pb.rb' ],
+        "protobuf_version" => 3,
+        "protobuf_root_directory" => File.expand_path(File.dirname(__FILE__) + pb_include_path + '/pb3/'))
+    end
+
+    values = {:httpMessage=>{:httpMethod=>"GET", :responseHeaders=>"Content-Length: 545554\r\nAccess-Control-Allow-Origin: *\r\n",
+      :requestId=>"1a5dbbd", :tls=>"tls1.3", :status=>200, :host=>"imgcy.foobar.com",
+      :requestHeaders=>"Host: imgcy.foobar.com\r\nAccept: */*", :bytes=>545554}, :header=>{:unix_timestamp=>"1601995478"},
+      :attackData=>{:policyId=>"img_108749", :rules_translated=>[
+        {"ruleData"=>"FOO-1", "ruleMessage"=>"Whitelist APPs", "ruleAction"=>"monitor", "rule"=>"BOT-123", "ruleTag"=>"AKAMAI/BOT/CUST_DEFINED_BOTS"},
+        {"ruleData"=>"FOO-2", "ruleMessage"=>"Whitelist APPs", "ruleAction"=>"tarpit", "rule"=>"BOT-123", "ruleTag"=>"AKAMAI/BOT/CUST_DEFINED_BOTS"},
+        {"ruleData"=>"FOO-3", "ruleMessage"=>"Whitelist APPs", "ruleAction"=>"deny", "rule"=>"BOT-123", "ruleTag"=>"AKAMAI/BOT/CUST_DEFINED_BOTS"},
+
+      ],
+      :ruleSelectors=>"", :configId=>"123", :clientIP=>"11.11.124.00"}, :version=>"1.0",
+      :geo=>{:asn=>3320, :city=>"FRANKFURT", :continent=>"EU", :regionCode=>"HE", :country=>"DE"}}
+
+    event = LogStash::Event.new( values )
+
+    it "should convert types in nested fields" do
+      encoded = false
+      subject.on_event do |event, data|
+        expect(data).to be_a(String)
+        encoded = true
+        pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
+        encoded_data = pb_builder.decode(data)
+        expect(encoded_data.version ).to eq(values[:version].to_s)
+        expect(encoded_data.httpMessage.host ).to eq(values[:httpMessage][:host])
+        expect(encoded_data.attackData.policyId ).to eq(values[:attackData][:policyId])
+        expect(encoded_data.attackData.rules_translated[0].ruleData ).to eq(values[:attackData][:rules_translated][0]["ruleData"])
+        expect(encoded_data.attackData.rules_translated[1].ruleData ).to eq(values[:attackData][:rules_translated][1]["ruleData"])
+        expect(encoded_data.attackData.rules_translated[2].ruleData ).to eq(values[:attackData][:rules_translated][2]["ruleData"])
+
+      end
+      subject.encode(event)
+      insist { encoded } == true
+    end # it
+
+  end # context #encodePB3-12
+
+
+
 end # describe
