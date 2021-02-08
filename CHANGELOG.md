@@ -1,3 +1,6 @@
+## 1.2.5
+  - Encoder bugfix: avoid pipeline crash if encoding failed.
+
 ## 1.2.4
   - Encoder bugfix: avoid pipeline crash if encoding failed.
 

@@ -134,7 +134,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Recommendation: use the translate plugin to restore previous behaviour when upgrading.
   config :protobuf_version, :validate => [2,3], :default => 2, :required => true
 
-  # To tolerate faulty messages that cannot be decoded, set this to false. Otherwise the pipeline will stop upon encountering a non decipherable message.
+  # To tolerate faulty messages that cannot be en/decoded, set this to false. Otherwise the pipeline will stop upon encountering a non decipherable message.
   config :stop_on_error, :validate => :boolean, :default => false, :required => false
 
   # Instruct the encoder to attempt converting data types to match the protobuf definitions. Available only for protobuf version 3.
@@ -332,10 +332,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       else
         @logger.warn("Protobuf encoding error 2.4.2: (#{e.inspect}). The event has been discarded.")
       end
+      if @stop_on_error
+        raise e
+      end
+      nil
     rescue => ex
       @logger.warn("Protobuf encoding error 2.5: (#{e.inspect}). The event has been discarded. Auto-typecasting was on: #{@pb3_encoder_autoconvert_types}")
+      if @stop_on_error
+        raise ex
+      end
+      nil
     end
   end # pb3_handle_type_errors
+
 
   def pb3_get_type_mismatches(data, key_prefix, pb_class)
     mismatches = []
@@ -562,7 +571,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.warn("Encoding error 1: #{e.inspect}")
     raise e
   end
-
 
 
   def pb2_prepare_for_encoding(datahash, class_name)
