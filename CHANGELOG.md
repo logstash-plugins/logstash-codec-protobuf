@@ -1,3 +1,6 @@
+## 1.2.6
+  - [DOC] Fixed link format (from MD to asciidoc) [#61](https://github.com/logstash-plugins/logstash-codec-protobuf/pull/61)
+
 ## 1.2.5
   - Encoder bugfix: avoid pipeline crash if encoding failed.
 
