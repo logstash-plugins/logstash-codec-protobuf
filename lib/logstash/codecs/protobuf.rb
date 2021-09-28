@@ -252,7 +252,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     case input
     when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
-      input.to_hash.each {|key, value|
+      input.to_h.each {|key, value|
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }
     when ::Array
@@ -339,7 +339,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def pb3_get_type_mismatches(data, key_prefix, pb_class)
     mismatches = []
-    data.to_hash.each do |key, value|
+    data.to_h.each do |key, value|
         expected_type = pb3_get_expected_type(key, pb_class)
         r = pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
         mismatches.concat(r)
