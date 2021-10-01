@@ -33,3 +33,5 @@ sudo make install
 ```
 logstash-plugin install --no-verify google-protobuf-$PROTOBUF_GEM_VERSION-java.gem
 ```
+
+4. Make sure that you use at least version 1.2.6 or higher of the logstash-codec-protobuf.
