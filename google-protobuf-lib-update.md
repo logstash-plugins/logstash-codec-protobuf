@@ -1,4 +1,4 @@
-The google protobuf gem has [not been updated for jruby in a while](https://github.com/protocolbuffers/protobuf/issues/1594) and is currently only available in version [3.0.5pre](https://rubygems.org/gems/google-protobuf/versions/3.5.0.pre-java) whereas the official protobuf version is 3.18+.
+The google protobuf gem has [not been updated for jruby in a while](https://github.com/protocolbuffers/protobuf/issues/1594) and is currently only available in version [3.0.5.pre](https://rubygems.org/gems/google-protobuf/versions/3.5.0.pre-java) whereas the official protobuf version is 3.18+.
 If you want to use a newer library version then please follow these instructions on how to manually build the google-protobuf.gem.
 
 0.  Get the protobuf sources:
