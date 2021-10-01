@@ -1,5 +1,8 @@
-## 1.2.5
+## 1.2.7
   - Encoder: new flag to drop additional fields if not present in protobuf definition
+
+## 1.2.5
+  - Encoder bugfix: avoid pipeline crash if encoding failed.
 
 ## 1.2.4
   - Encoder bugfix: avoid pipeline crash if encoding failed.
