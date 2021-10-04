@@ -10,6 +10,8 @@ This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to pa
 * install the codec: `bin/logstash-plugin install logstash-codec-protobuf`
 * use the codec in your Logstash config file. See details below.
 
+Note: the latest supported jruby version of Google's protobuf library is 3.5.0.pre. If you need to use a more current version, please find instructions [here](google-protobuf-lib-update.md).
+
 ## Configuration
 
 There are two ways to specify the locations of the ruby protobuf definitions:
