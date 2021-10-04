@@ -8,6 +8,7 @@ Gem::Specification.new do |s|
   s.authors         = ["Inga Feick"]
   s.email           = 'inga.feick@trivago.com'
   s.require_paths   = ["lib"]
+  s.platform        = "jruby"
 
   # Files
   s.files = Dir["lib/**/*","spec/**/*","*.gemspec","*.md","CONTRIBUTORS","Gemfile","LICENSE","NOTICE.TXT", "vendor/jar-dependencies/**/*.jar", "vendor/jar-dependencies/**/*.rb", "VERSION", "docs/**/*"]
@@ -20,7 +21,7 @@ Gem::Specification.new do |s|
 
   # Gem dependencies
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
-  s.add_runtime_dependency 'google-protobuf', '>= 3.5.0.pre' # has been tested with 3.17.3
+  s.add_runtime_dependency 'google-protobuf', '3.5.0.pre' # set this to your custom library version if you want
   s.add_runtime_dependency 'ruby-protocol-buffers' # for protobuf 2
   s.add_development_dependency 'logstash-devutils'
 

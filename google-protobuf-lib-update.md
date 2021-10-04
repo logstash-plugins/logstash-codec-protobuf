@@ -29,9 +29,27 @@ sudo make install
 
 (Instructions taken from https://github.com/protocolbuffers/protobuf/issues/1594#issuecomment-258029377)
 
-3. Install the new gem in your Logstash:
+3. Change the dependency in the protobuf codec:
+
+Step 3.a: clone this repo.
+`git clone git@github.com:logstash-plugins/logstash-codec-protobuf.git`
+
+Step 3.b: edit the dependency in [the gemspec](https://github.com/logstash-plugins/logstash-codec-protobuf/blob/master/logstash-codec-protobuf.gemspec#L23) to the version that you built in step 2.
+
+Step 3.c: set the [codec version in the gemspec](https://github.com/logstash-plugins/logstash-codec-protobuf/blob/master/logstash-codec-protobuf.gemspec#L4) to a number that is not available on rubygems.
+
+Step 3.d: build the codec. `rake build && gem build logstash-codec-protobuf.gemspec`
+
+
+4. Install both gems in your Logstash (in this order):
 ```
 logstash-plugin install --no-verify google-protobuf-$PROTOBUF_GEM_VERSION-java.gem
+logstash-plugin install logstash-codec-protobuf-$PROTOBUF_INPUT_PLUGIN_VERSION.gem
 ```
 
-4. Make sure that you use at least version 1.2.6 or higher of the logstash-codec-protobuf.
+# Notes
+
+We experimented with both the `>= ` and the `~>` operators in the dependency specification, such as
+` s.add_runtime_dependency 'google-protobuf', '>= 3.5.0.pre`
+but it would always lead to the ruby version of the protobuf gem to be pulled. Hints / PRs for pinning this to the Java/Jruby version would be appreciated and would render the steps in section 3 and parts of step 4 unnecessary.
+
