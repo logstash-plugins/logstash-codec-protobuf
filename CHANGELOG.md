@@ -1,5 +1,11 @@
-## 1.2.7
+## 1.2.8
   - Encoder: new flag to drop additional fields if not present in protobuf definition
+
+## 1.2.7
+  - Syntax change for compatibility with newer versions of the google-protobuf gem
+
+## 1.2.6
+  - [DOC] Fixed link format (from MD to asciidoc) [#61](https://github.com/logstash-plugins/logstash-codec-protobuf/pull/61)
 
 ## 1.2.5
   - Encoder bugfix: avoid pipeline crash if encoding failed.

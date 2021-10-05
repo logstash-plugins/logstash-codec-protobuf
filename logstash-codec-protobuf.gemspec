@@ -1,13 +1,14 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-codec-protobuf'
-  s.version         = '1.2.7'
+  s.version         = '1.2.8'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Reads protobuf messages and converts to Logstash Events"
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
   s.authors         = ["Inga Feick"]
   s.email           = 'inga.feick@trivago.com'
   s.require_paths   = ["lib"]
+  s.platform        = "jruby"
 
   # Files
   s.files = Dir["lib/**/*","spec/**/*","*.gemspec","*.md","CONTRIBUTORS","Gemfile","LICENSE","NOTICE.TXT", "vendor/jar-dependencies/**/*.jar", "vendor/jar-dependencies/**/*.rb", "VERSION", "docs/**/*"]
@@ -20,7 +21,7 @@ Gem::Specification.new do |s|
 
   # Gem dependencies
   s.add_runtime_dependency "logstash-core-plugin-api", ">= 1.60", "<= 2.99"
-  s.add_runtime_dependency 'google-protobuf', '3.5.0.pre'
+  s.add_runtime_dependency 'google-protobuf', '3.5.0.pre' # set this to your custom library version if you want
   s.add_runtime_dependency 'ruby-protocol-buffers' # for protobuf 2
   s.add_development_dependency 'logstash-devutils'
 
