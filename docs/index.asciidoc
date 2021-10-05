@@ -239,3 +239,12 @@ Example values: for the protobuf definition
 the field `[@metadata][pb_oneof][horse_type]` will be set to either `pegasus` or `unicorn`.
 Available only for protobuf version 3.
 
+[id="plugins-{type}s-{plugin}-pb3_encoder_drop_unknown_fields"]
+===== `pb3_encoder_drop_unknown_fields`
+
+  * Value type is <<boolean,boolean>>
+  * Default value is true
+
+The protobuf encoder should ignore fields which are present in the event but not in the protobuf definition. When setting this to false, invalid events will be discarded and an error will be logged.
+Available only for protobuf version 3.
+

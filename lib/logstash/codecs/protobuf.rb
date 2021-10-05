@@ -151,6 +151,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # Available only for protobuf version 3.
   config :pb3_set_oneof_metainfo, :validate => :boolean, :default => false, :required => false
 
+  # Encoder should ignore fields which are present in the event but not in the pb definition.
+  # When setting to false, invalid events will be discarded and an error will be logged.
+  # Available only for protobuf version 3.
+  config :pb3_encoder_drop_unknown_fields, :validate => :boolean, :default => true, :required => false
+
 
   attr_reader :execution_context
 
@@ -162,6 +167,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def register
     @metainfo_messageclasses = {}
     @metainfo_enumclasses = {}
+    @metainfo_existingfields = {}
     @metainfo_pb2_enumlist = []
     @pb3_typeconversion_tag = "_protobuf_type_converted"
 
@@ -191,10 +197,17 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
       if @protobuf_version == 3
         @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-
       else
         @pb_builder = pb2_create_instance(class_name)
       end
+    end
+
+    if @protobuf_version == 3
+      include_path.each { |path| pb3_metadata_analyis(path) } if include_path.length > 0
+      pb3_metadata_analyis(@class_file) if !@class_file.empty?
+    else
+      include_path.each { |path| pb2_metadata_analyis(path) } if include_path.length > 0
+      pb2_metadata_analyis(@class_file) if !@class_file.empty?
     end
   end
 
@@ -241,6 +254,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     else
       protobytes = pb2_encode(event)
     end
+
     unless protobytes.nil? or protobytes.empty?
       @on_event.call(event, protobytes)
     end
@@ -274,70 +288,63 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def pb3_encode(event)
-
     datahash = event.to_hash
-
     is_recursive_call = !event.get('tags').nil? and event.get('tags').include? @pb3_typeconversion_tag
     if is_recursive_call
       datahash = pb3_remove_typeconversion_tag(datahash)
     end
-    datahash = pb3_prepare_for_encoding(datahash)
+    datahash = pb3_prepare_for_encoding(datahash, @class_name, [])
     if datahash.nil?
-      @logger.warn("Protobuf encoding error 4: empty data for event #{event.to_hash}")
+      @logger.warn("PB3 encoder err 1.1: empty data for event #{event.to_hash}")
+      return nil
     end
     if @pb_builder.nil?
-      @logger.warn("Protobuf encoding error 5: empty protobuf builder for class #{@class_name}")
+      @logger.warn("PB3 encoder err 1.2: empty protobuf builder for class #{@class_name}")
+      return nil
     end
     pb_obj = @pb_builder.new(datahash)
     @pb_builder.encode(pb_obj)
-
   rescue ArgumentError => e
     k = event.to_hash.keys.join(", ")
-    @logger.warn("Protobuf encoding error 1: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. \
-      Required fields in the protobuf definition are: #{k} and fields must not begin with @ sign. The event has been discarded.")
+    msg = "PB3 encoder err 1.3: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. Required fields in the protobuf definition are: #{k}. Fields must not begin with @ sign. The event has been discarded."
+    @logger.warn(msg)
     nil
   rescue TypeError => e
-    pb3_handle_type_errors(event, e, is_recursive_call, datahash)
-    nil
+    if is_recursive_call
+      @logger.warn("PB3 encoder err 1.4: Type error (#{e.inspect}). Some types could not be converted. The event has been discarded. Original data: #{datahash}")
+      nil
+    else
+      pb3_handle_type_errors(event, datahash)
+    end
   rescue => e
-    @logger.warn("Protobuf encoding error 3: #{e.inspect}. Event discarded. Input data: #{datahash}. The event has been discarded. Backtrace: #{e.backtrace}")
+    @logger.warn("PB3 encoder err 1.5: #{e}. Event dropped. Input data: #{datahash}. Backtrace: #{e.backtrace}")
     nil
   end
 
-
-
-
-  def pb3_handle_type_errors(event, e, is_recursive_call, datahash)
+  def pb3_handle_type_errors(event, datahash)
     begin
-      if is_recursive_call
-        @logger.warn("Protobuf encoding error 2.1: Type error (#{e.inspect}). Some types could not be converted. The event has been discarded. Type mismatches: #{mismatches}.")
+      if @pb3_encoder_autoconvert_types
+        mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
+        event = pb3_convert_mismatched_types(event, mismatches)
+        # Add a (temporary) tag to handle the recursion stop
+        pb3_add_tag(event, @pb3_typeconversion_tag )
+        pb3_encode(event)
       else
-        if @pb3_encoder_autoconvert_types
-
-          msg = "Protobuf encoding error 2.2: Type error (#{e.inspect}). Will try to convert the data types. Original data: #{datahash}"
-          @logger.warn(msg)
-          mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
-
-          event = pb3_convert_mismatched_types(event, mismatches)
-          # Add a (temporary) tag to handle the recursion stop
-          pb3_add_tag(event, @pb3_typeconversion_tag )
-          pb3_encode(event)
-        else
-          @logger.warn("Protobuf encoding error 2.3: Type error (#{e.inspect}). The event has been discarded. Try setting pb3_encoder_autoconvert_types => true for automatic type conversion.")
-        end
+        @logger.warn("PB3 encoder err 2.3: Type error (#{e.inspect}). The event has been discarded. Try setting pb3_encoder_autoconvert_types => true for automatic type conversion.")
+        nil
       end
     rescue TypeError => e
       if @pb3_encoder_autoconvert_types
-        @logger.warn("Protobuf encoding error 2.4.1: (#{e.inspect}). Failed to convert data types. The event has been discarded. original data: #{datahash}")
+        @logger.warn("PB3 encoder err 2.4.1: (#{e.inspect}). Failed to convert data types. The event has been discarded. Original data: #{datahash}")
       else
-        @logger.warn("Protobuf encoding error 2.4.2: (#{e.inspect}). The event has been discarded.")
+        @logger.warn("PB3 encoder err 2.4.2: (#{e.inspect}). The event has been discarded.")
       end
       if @stop_on_error
         raise e
       end
       nil
     rescue => ex
-      @logger.warn("Protobuf encoding error 2.5: (#{e.inspect}). The event has been discarded. Auto-typecasting was on: #{@pb3_encoder_autoconvert_types}")
+      @logger.warn("PB3 encoder err 2.5: (#{e.inspect}). The event has been discarded. Auto-typecasting was on: #{@pb3_encoder_autoconvert_types}. Original data: #{datahash}")
       if @stop_on_error
         raise ex
       end
@@ -347,27 +354,36 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb3_get_type_mismatches(data, key_prefix, pb_class)
-    mismatches = []
-    data.to_h.each do |key, value|
+    begin
+      mismatches = []
+      data.to_h.each do |key, value|
         expected_type = pb3_get_expected_type(key, pb_class)
         r = pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
         mismatches.concat(r)
-    end # data.each
-    mismatches
+      end # data.each
+      puts "pb3_get_type_mismatches #{data} => #{mismatches}" # TODO remove
+      mismatches
+    rescue => e
+      @logger.warn("PB3 encoder err 11: (#{e.inspect}). Key: #{key_prefix}, class: #{pb_class}. Data: #{data.inspect}")
+      []
+    end
   end
-
 
   def pb3_get_expected_type(key, pb_class)
     pb_descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class)
-
     if !pb_descriptor.nil?
       pb_builder = pb_descriptor.msgclass
       pb_obj = pb_builder.new({})
-      v = pb_obj.send(key)
-
-      if !v.nil?
-        v.class
-      else
+      begin
+        v = pb_obj.send(key)
+        if !v.nil?
+          v.class
+        else
+          nil
+        end
+      rescue => e
+        # This can happen when a fieldname is a reserved word, such as :method
+        # Empty on purpose
         nil
       end
     end
@@ -375,38 +391,82 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
     mismatches = []
-
     if value.nil?
-      is_mismatch = false
-    else
+      return []
+    end
+    begin
       case value
       when ::Hash, Google::Protobuf::MessageExts
         is_mismatch = false
-        descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key)
-        if !descriptor.subtype.nil?
-          class_of_nested_object = pb3_get_descriptorpool_name(descriptor.subtype.msgclass)
+        class_descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class)
+        if class_descriptor.nil?
+          @logger.warn("PB3 encoder err 12.1.1: could not find protobuf definition for class #{pb_class}")
+          return []
+        end # if
+        field_descriptor = class_descriptor.lookup(key)
+        if field_descriptor.nil?
+          @logger.warn("PB3 encoder err 12.1.2: could not find field_descriptor for key #{key}, prefix #{key_prefix} in class #{pb_class}")
+          return []
+        end # if
+        subtypus = field_descriptor.subtype
+        if subtypus.nil?
+          @logger.warn("PB3 encoder err 12.1.3: could not find subtype class for key #{key}, prefix #{key_prefix} in class #{pb_class}")
+          return []
+        end #if
+        subtype_messageclass = subtypus.msgclass
+        if subtype_messageclass.nil?
+          @logger.warn("PB3 encoder err 12.1.4: could not find subtype_messageclass for key #{key}, prefix #{key_prefix} in class #{pb_class}")
+          return []
+        end #if
+        class_of_nested_object = pb3_get_descriptorpool_name(subtype_messageclass)
+        if class_of_nested_object.nil?
+          @logger.warn("PB3 encoder err 12.1.5: could not find class of nested object for key #{key}, prefix #{key_prefix} in class #{pb_class}")
+          return []
+        end #if
+        begin
           new_prefix = "#{key}."
           recursive_mismatches = pb3_get_type_mismatches(value, new_prefix, class_of_nested_object)
           mismatches.concat(recursive_mismatches)
-        end
+        rescue => e
+          @logger.warn("PB3 encoder error 12.2: (#{e.inspect}).
+            Key: #{key_prefix} #{key}, class: #{pb_class}.
+            Expected_type: #{expected_type}.
+            value: #{value}
+            ") # todo
+        end # begin ::Hash
       when ::Array
-        expected_type = pb3_get_expected_type(key, pb_class)
-        is_mismatch = (expected_type != Google::Protobuf::RepeatedField)
-        child_type = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class).lookup(key).type
-        value.each_with_index  do | v, i |
-          new_prefix = "#{key}."
-          recursive_mismatches = pb3_compare_datatypes(v, i.to_s, new_prefix, pb_class, child_type)
-          mismatches.concat(recursive_mismatches)
-          is_mismatch |= recursive_mismatches.any?
-        end # do
+        begin
+          expected_type = pb3_get_expected_type(key, pb_class)
+          is_mismatch = (expected_type != Google::Protobuf::RepeatedField)
+          class_descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class)
+          if class_descriptor.nil?
+            @logger.warn("PB3 encoder err 12.4: could not find protobuf definition for class #{pb_class}")
+            return []
+          end
+          field_descriptor = class_descriptor.lookup(key)
+          if field_descriptor.nil?
+            @logger.warn("PB3 encoder err 12.5: could not find field_descriptor for key #{key}, prefix #{key_prefix} in class #{pb_class}")
+            return []
+          end
+          child_type = field_descriptor.type
+          value.each_with_index  do | v, i |
+            new_prefix = "#{key}."
+            recursive_mismatches = pb3_compare_datatypes(v, i.to_s, new_prefix, pb_class, child_type)
+            mismatches.concat(recursive_mismatches)
+            is_mismatch |= recursive_mismatches.any?
+          end # do
+        rescue => e
+          @logger.warn("PB3 encoder error 12.6: (#{e.inspect}). Key: #{key_prefix} #{key}, class: #{pb_class}. Expected_type: #{expected_type}. #{e.backtrace}")
+        end # begin ::Array
       else # is scalar data type
-
         is_mismatch = ! pb3_is_scalar_datatype_match(expected_type, value.class)
-      end # if
-    end # if value.nil?
-
-    if is_mismatch
-      mismatches << {"key" => "#{key_prefix}#{key}", "actual_type" => value.class, "expected_type" => expected_type, "value" => value}
+      end # case
+      if is_mismatch
+        mismatches << {"key" => "#{key_prefix}#{key}", "actual_type" => value.class, "expected_type" => expected_type, "value" => value}
+      end
+    rescue => e
+      @logger.warn("PB3 encoder err 12.7: (#{e.inspect}). Key: #{key_prefix} #{key}, class: #{pb_class}.
+        Expected_type: #{expected_type}. #{e.backtrace}")
     end
     mismatches
   end
@@ -445,7 +505,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       end
     end
   end
-
 
   def pb3_convert_mismatched_types_getter(struct, key)
     if struct.is_a? ::Hash
@@ -512,14 +571,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
                   struct = pb3_convert_mismatched_types_setter(struct, key, new_value )
                 end
             rescue Exception => ex
-                @logger.debug("Protobuf encoding error 5: Could not convert types for protobuf encoding: #{ex}")
+                @logger.debug("PB3 encoder err 5: Could not convert types for protobuf encoding: #{ex}")
             end
         end # if key contains .
     end # mismatches.each
     struct
   end
 
-  def pb3_prepare_for_encoding(datahash)
+  def pb3_prepare_for_encoding(datahash, pb_class, parent_fields)
+    # TODO parent_fields might be removed
+
     # 0) Remove empty fields.
     datahash = datahash.select { |key, value| !value.nil? }
 
@@ -528,12 +589,53 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # 2) convert timestamps and other objects to strings
     datahash = datahash.inject({}){|x,(k,v)| x[k.gsub(/@/,'').to_sym] = (should_convert_to_string?(v) ? v.to_s : v); x}
 
-    datahash.each do |key, value|
-      datahash[key] = pb3_prepare_for_encoding(value) if value.is_a?(Hash)
+    if @pb3_encoder_drop_unknown_fields
+      datahash = datahash.select { |k, v| pb3_field_defined(k, pb_class) }
     end
 
+    datahash.each do |key, val|
+      if val.is_a?(Hash)
+        new_parents = parent_fields.clone().append(key)
+        field_pb_class = @metainfo_messageclasses[pb_class][key.to_s]
+        datahash[key] = pb3_prepare_for_encoding(val, field_pb_class, new_parents)
+      end
+
+      if val.is_a?(Array)
+        new_list = []
+        val.each { |v|
+          if v.is_a?(Hash)
+            field_pb_class = @metainfo_messageclasses[pb_class][key.to_s]
+            v2 = pb3_prepare_for_encoding(v, field_pb_class, parent_fields)
+            new_list << v2
+          else
+            new_list << v
+          end
+        }
+        datahash[key] = new_list
+      end # val is array
+    end # datahash.each
+    datahash
+  rescue => e
+    @logger.warn("PB3 encoder err 10: #{e}. Data: #{datahash}. Parent class: #{pb_class}. #{e.backtrace}")
     datahash
   end
+
+
+  def pb3_field_defined(field_name, pb_class)
+    begin
+      if @metainfo_existingfields.key? pb_class
+        field_exists = @metainfo_existingfields[pb_class].include?(field_name.to_s)
+        field_exists
+      else
+        @logger.warn("PB3 encoder err 3.1: meta info not found for field: #{field_name} of class: #{pb_class} in #{@metainfo_existingfields}")
+        true # when in doubt assume that the field is there
+      end
+    rescue => e
+      @logger.warn("PB3 encoder err 3.2: #{e}. Key: #{field_name}. Parent class: #{pb_class}. #{@metainfo_existingfields}")
+      true # when in doubt assume that the field is there
+    end
+  end
+
 
   def pb3_get_oneof_metainfo(pb_object, pb_class_name)
     meta = {}
@@ -565,10 +667,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     msg = @pb_builder.new(data)
     msg.serialize_to_string
   rescue NoMethodError => e
-    @logger.warn("Encoding error 2. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
+    @logger.warn("PB2 encoder err 1. Probably mismatching protobuf definition. Required fields in the protobuf definition are: " + event.to_hash.keys.join(", ") + " and the timestamp field name must not include a @. ")
     raise e
   rescue => e
-    @logger.warn("Encoding error 1: #{e.inspect}")
+    @logger.warn("PB2 encoder err 2: #{e.inspect}")
     raise e
   end
 
@@ -617,13 +719,20 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb3_metadata_analyis(filename)
-
-    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_require = /\s*require \'(?<require_file>.+?)\'\s*/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<name>.+),(\s*):(?<type>\w+),(\s*)(?<position>\d+)(, \"(?<enum_class>.*?)\")?/
     class_name = ""
     type = ""
     field_name = ""
+    includes = []
     File.readlines(filename).each do |line|
+      if ! (line =~ regex_require).nil?
+        required = $1
+        unless required == "google/protobuf"
+          includes << required
+        end
+      end # if
       if ! (line =~ regex_class_name).nil?
         class_name = $1
         @metainfo_messageclasses[class_name] = {}
@@ -633,6 +742,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         field_name = $1
         type = $2
         field_class_name = $4
+
+        if !@metainfo_existingfields.key? class_name
+          @metainfo_existingfields[class_name] = []
+        end
+        @metainfo_existingfields[class_name] << field_name
+
         if type == "message"
           @metainfo_messageclasses[class_name][field_name] = field_class_name
         elsif type == "enum"
@@ -640,15 +755,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         end
       end # if
     end # readlines
+
     if class_name.nil?
       @logger.warn("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
+    end
+
+    includes.each do |f|
+      pb3_metadata_analyis "#{@protobuf_root_directory}/#{f}.rb"
     end
   rescue Exception => e
     @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     raise e
   end
-
 
 
   def pb2_metadata_analyis(filename)
@@ -697,13 +816,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       end
     end
     if class_name.nil?
-      @logger.warn("Error 4: class name not found in file  " + filename)
+      @logger.warn("Error 7: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
     end
   rescue LoadError => e
     raise ArgumentError.new("Could not load file: " + filename + ". Please try to use absolute pathes. Current working dir: " + Dir.pwd + ", loadpath: " + $LOAD_PATH.join(" "))
   rescue => e
-
     @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     raise e
   end
@@ -720,13 +838,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           raise e
         end
       end
-
-      if @protobuf_version == 3
-        pb3_metadata_analyis(filename)
-      else
-        pb2_metadata_analyis(filename)
-      end
-
     else
       @logger.warn("Not a ruby file: " + filename)
     end
