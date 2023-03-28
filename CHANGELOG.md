@@ -1,3 +1,9 @@
+## 1.2.8
+  - Update protobuf library to 3.22.2
+
+## 1.2.7
+  - TODO
+
 ## 1.2.6
   - [DOC] Fixed link format (from MD to asciidoc) [#61](https://github.com/logstash-plugins/logstash-codec-protobuf/pull/61)
 
