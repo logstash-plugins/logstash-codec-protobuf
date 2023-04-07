@@ -1,3 +1,6 @@
+## 1.2.9
+  - Fix decoding of structs
+
 ## 1.2.8
   - Update protobuf library to 3.22.2
 
