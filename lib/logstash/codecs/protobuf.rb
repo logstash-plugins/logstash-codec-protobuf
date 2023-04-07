@@ -215,7 +215,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       if @pb3_set_oneof_metainfo
         meta = pb3_get_oneof_metainfo(decoded, @class_name)
       end
-      h = pb3_deep_to_hash(decoded)
+      h = JSON.parse decoded.to_json()
+      # Switching to json because pb3_deep_to_hash doesn't translate structs correctly
+      # h = pb3_deep_to_hash(decoded)
     else
       decoded = @pb_builder.parse(data.to_s)
       h = decoded.to_hash
@@ -226,7 +228,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
     yield e if block_given?
   rescue => ex
-    @logger.warn("Couldn't decode protobuf: #{ex.inspect}.")
+    @logger.warn("Couldn't decode protobuf: #{ex.inspect}")
     if stop_on_error
       raise ex
     else # keep original message so that the user can debug it.
