@@ -215,9 +215,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       if @pb3_set_oneof_metainfo
         meta = pb3_get_oneof_metainfo(decoded, @class_name)
       end
-      h = JSON.parse decoded.to_json()
-      # Switching to json because pb3_deep_to_hash doesn't translate structs correctly
-      # h = pb3_deep_to_hash(decoded)
+      h = pb3_deep_to_hash(decoded)
     else
       decoded = @pb_builder.parse(data.to_s)
       h = decoded.to_hash
@@ -254,9 +252,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     case input
     when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
-      input.to_h.each {|key, value|
+      input.to_h.each {|key, _|
+        value = input.get(key)
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }
+    when Google::Protobuf::struct
+      result = JSON.parse input.to_json({
+        :preserve_proto_fieldnames => true,
+        :emit_defaults => true
+      })
     when ::Array
       result = []
       input.each {|value|
