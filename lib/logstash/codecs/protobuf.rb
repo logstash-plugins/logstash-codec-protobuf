@@ -2,6 +2,7 @@
 require 'logstash/codecs/base'
 require 'logstash/util/charset'
 require 'google/protobuf' # for protobuf3
+require 'google/protobuf/struct_pb'
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers, for protobuf2
 
 # Monkey-patch the `Google::Protobuf::DescriptorPool` with a mutex for exclusive
@@ -230,7 +231,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     if stop_on_error
       raise ex
     else # keep original message so that the user can debug it.
-      yield LogStash::Event.new("message" => data, "tags" => ["_protobufdecodefailure"])
+      yield LogStash::Event.new(
+        "message" => data, "tags" => ["_protobufdecodefailure"],
+        "decoder_exception" => "#{ex.inspect}"
+      )
     end
   end # def decode
 
@@ -250,17 +254,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   private
   def pb3_deep_to_hash(input)
     case input
-    when Google::Protobuf::MessageExts # it's a protobuf class
-      result = Hash.new
-      input.to_h.each {|key, _|
-        value = input.instance_variable_get("@#{key}")
-        result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
-      }
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
         :preserve_proto_fieldnames => true,
         :emit_defaults => true
       })
+    when Google::Protobuf::MessageExts # it's a protobuf class
+      result = Hash.new
+      # when we've called to_h here it is already a nested hash, for the
+      # structs we bubble down the original value instead.
+      input.to_h.each {|key, value|
+        value = input[key] if input[key].is_a? Google::Protobuf::Struct
+        result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
+      }
     when ::Array
       result = []
       input.each {|value|

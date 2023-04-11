@@ -444,4 +444,33 @@ describe LogStash::Codecs::Protobuf do
 
   end # context pb3decoder_test8c
 
+  context "#pb3decoder_test9" do
+
+    ##################################################
+    let(:plugin_9) { LogStash::Codecs::Protobuf.new("class_name" => "messages.SendJsonRequest", "class_file" => 'pb3/struct_test_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
+      # TODO: pb3_set_oneof_metainfo => true is broken when running with a struct field
+    before do
+        plugin_9.register
+    end
+
+    require pb_include_path + '/pb3/struct_test_pb.rb'
+
+    it "should decode a message with an embedded struct" do
+      # nested struct field
+      details = Google::Protobuf::Struct.new(
+        fields: {"field_a" => {:string_value => "value_a"}},
+      )
+      data = {:UserID=>"123-456", :Details => details}
+      pb_obj = Messages::SendJsonRequest.new(data)
+      bin = Messages::SendJsonRequest.encode(pb_obj)
+
+      plugin_9.decode(bin) do |event|
+        expect(event.get("UserID") ).to eq(data[:UserID])
+        expect(event.get("Details") ).to eq({"field_a"=>"value_a"})
+      end
+
+    end # it
+  end # context pb3decoder_test9
+
 end # describe
