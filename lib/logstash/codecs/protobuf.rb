@@ -256,7 +256,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         value = input.instance_variable_get("@#{key}")
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }
-    when Google::Protobuf::struct
+    when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
         :preserve_proto_fieldnames => true,
         :emit_defaults => true
