@@ -253,7 +253,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
       input.to_h.each {|key, _|
-        value = input.get(key)
+        value = input.instance_variable_get("@#{key}")
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }
     when Google::Protobuf::struct
