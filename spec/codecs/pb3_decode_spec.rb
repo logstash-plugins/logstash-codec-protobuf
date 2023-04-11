@@ -76,7 +76,7 @@ describe LogStash::Codecs::Protobuf do
   context "#pb3decoder_test1" do
 
 
-    #### Test case 1: Decode simple protobuf ####################################################################################################################
+    #### Test case 1: Decode simple protobuf ##############################################
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new(
       "class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)
     }
@@ -84,8 +84,8 @@ describe LogStash::Codecs::Protobuf do
     it "should return an event from protobuf data" do
 
       unicorn_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("Unicorn").msgclass
-      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23], :fur_colour => Colour::PINK,
-      :favourite_colours => [Colour::GREEN, Colour::BLUE]
+      data = {:name => 'Pinkie', :age => 18, :is_pegasus => false, :favourite_numbers => [4711,23],
+        :fur_colour => Colour::PINK, :favourite_colours => [Colour::GREEN, Colour::BLUE]
       }
 
       unicorn_object = unicorn_class.new(data)
@@ -103,8 +103,9 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test2" do
 
-    #### Test case 2: decode nested protobuf ####################################################################################################################
-    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
+    #### Test case 2: decode nested protobuf ##############################################
+    let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn",
+     "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
 
     it "should return an event from protobuf data with nested classes" do
       father = unicorn_class.new({:name=> "Sparkle", :age => 50, :fur_colour => 3 })
@@ -126,8 +127,9 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test3" do
 
-    #### Test case 3: decode ProbeResult ####################################################################################################################
-    let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult", "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
+    #### Test case 3: decode ProbeResult ##############################################
+    let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult",
+     "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
 
     before do
         plugin_3.register
@@ -158,15 +160,15 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test4" do
 
-    #### Test case 4: decode PBDNSMessage ####################################################################################################################
-    let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage", "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
+    #### Test case 4: decode PBDNSMessage ##############################################
+    let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage",
+      "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
 
     before do
         plugin_4.register
     end
 
     it "should return an event from protobuf data with nested classes" do
-
 
       pbdns_message_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage").msgclass
       dns_question_class  = Google::Protobuf::DescriptorPool.generated_pool.lookup("PBDNSMessage.DNSQuestion").msgclass
@@ -239,7 +241,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test5" do
 
-    #### Test case 5: decode test case for github issue 17 ####################################################################################################################
+    #### Test case 5: decode test case for github issue 17 ##############################################
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
 
     before do
@@ -308,7 +310,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test7" do
 
-    #### Test case 6: decode test case for github issue 17 ####################################################################################################################
+    #### Test case 6: decode test case for github issue 17 ##############################################
     let(:plugin_7) { LogStash::Codecs::Protobuf.new("class_name" => "RepeatedEvents", "include_path" => [pb_include_path + '/pb3/events_pb.rb'], "protobuf_version" => 3)  }
     before do
         plugin_7.register
@@ -338,7 +340,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test8a" do
 
-    ########################################################################################################################
+    ##################################################
     let(:plugin_8a) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
     before do
@@ -376,7 +378,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test8b" do
 
-    ########################################################################################################################
+    ##################################################
     let(:plugin_8b) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
     before do
@@ -410,7 +412,7 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test8c" do # same test as 8a just with different one_of options selected
 
-    ########################################################################################################################
+    ##################################################
     let(:plugin_8c) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
     before do
@@ -441,5 +443,34 @@ describe LogStash::Codecs::Protobuf do
 
 
   end # context pb3decoder_test8c
+
+  context "#pb3decoder_test9" do
+
+    ##################################################
+    let(:plugin_9) { LogStash::Codecs::Protobuf.new("class_name" => "messages.SendJsonRequest", "class_file" => 'pb3/struct_test_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
+      # TODO: pb3_set_oneof_metainfo => true is broken when running with a struct field
+    before do
+        plugin_9.register
+    end
+
+    require pb_include_path + '/pb3/struct_test_pb.rb'
+
+    it "should decode a message with an embedded struct" do
+      # nested struct field
+      details = Google::Protobuf::Struct.new(
+        fields: {"field_a" => {:string_value => "value_a"}},
+      )
+      data = {:UserID=>"123-456", :Details => details}
+      pb_obj = Messages::SendJsonRequest.new(data)
+      bin = Messages::SendJsonRequest.encode(pb_obj)
+
+      plugin_9.decode(bin) do |event|
+        expect(event.get("UserID") ).to eq(data[:UserID])
+        expect(event.get("Details") ).to eq({"field_a"=>"value_a"})
+      end
+
+    end # it
+  end # context pb3decoder_test9
 
 end # describe
