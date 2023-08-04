@@ -1,14 +1,14 @@
 Gem::Specification.new do |s|
 
   s.name            = 'logstash-codec-protobuf'
-  s.version         = '1.2.9'
+  s.version         = '1.2.10'
   s.licenses        = ['Apache License (2.0)']
   s.summary         = "Reads protobuf messages and converts to Logstash Events"
   s.description     = "This gem is a logstash plugin required to be installed on top of the Logstash core pipeline using $LS_HOME/bin/plugin install gemname. This gem is not a stand-alone program"
   s.authors         = ["Inga Feick"]
   s.email           = 'inga.feick@trivago.com'
   s.require_paths   = ["lib"]
-  s.platform        = "jruby"
+  s.platform        = "java"
 
   # Files
   s.files = Dir["lib/**/*","spec/**/*","*.gemspec","*.md","CONTRIBUTORS","Gemfile","LICENSE","NOTICE.TXT", "vendor/jar-dependencies/**/*.jar", "vendor/jar-dependencies/**/*.rb", "VERSION", "docs/**/*"]
