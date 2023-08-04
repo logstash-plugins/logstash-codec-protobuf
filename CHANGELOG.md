@@ -1,3 +1,6 @@
+## 1.2.11
+  - Update gem platform to be "java" instead of "jruby" [#67](https://github.com/logstash-plugins/logstash-codec-protobuf/pull/67)
+
 ## 1.2.9
   - Fix decoding of structs
 
