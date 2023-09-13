@@ -1,5 +1,5 @@
-## 1.2.11
-  - Enforce XOR between options for OneOf
+## 1.3.0
+  - Enforce XOR between options for one-of; fix incorrect detection of metadata for one-of fields; format change for one-of metadata
 
 ## 1.2.10
   - Update gem platform to be "java" instead of "jruby" [#67](https://github.com/logstash-plugins/logstash-codec-protobuf/pull/67)

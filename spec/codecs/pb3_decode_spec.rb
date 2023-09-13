@@ -444,7 +444,6 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("tail")['natural']['wavyness']).to eq(natural_data[:wavyness])
         expect(event.get("@metadata")["pb_oneof"]["horse_type"]).to eq("unicorn")
         expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"]).to eq("natural")
-
       end
     end # it
 
@@ -452,11 +451,10 @@ describe LogStash::Codecs::Protobuf do
 
   ##################################################
     
-  context "#pb3decoder_test9" do
+  context "#pb3decoder_test9a" do
 
     let(:plugin_9) { LogStash::Codecs::Protobuf.new("class_name" => "messages.SendJsonRequest", "class_file" => 'pb3/struct_test_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
-      # TODO: pb3_set_oneof_metainfo => true is broken when running with a struct field
     before do
         plugin_9.register
     end
@@ -473,14 +471,40 @@ describe LogStash::Codecs::Protobuf do
       bin = Messages::SendJsonRequest.encode(pb_obj)
 
       plugin_9.decode(bin) do |event|
+        expect(event.get("@metadata")["pb_oneof"]).to be_nil
         expect(event.get("UserID") ).to eq(data[:UserID])
         expect(event.get("Details") ).to eq({"field_a"=>"value_a"})
       end
-
     end # it
-  end # context pb3decoder_test9
+  end # context pb3decoder_test9a
 
-  
+  context "#pb3decoder_test9b" do # same as 9a but with one-of metainfo activated
+
+    let(:plugin_9) { LogStash::Codecs::Protobuf.new("class_name" => "messages.SendJsonRequest", "class_file" => 'pb3/struct_test_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
+    before do
+        plugin_9.register
+    end
+
+    require pb_include_path + '/pb3/struct_test_pb.rb'
+
+    it "should decode a message with an embedded struct" do
+      # nested struct field
+      details = Google::Protobuf::Struct.new(
+        fields: {"field_a" => {:string_value => "value_a"}},
+      )
+      data = {:UserID=>"123-456", :Details => details}
+      pb_obj = Messages::SendJsonRequest.new(data)
+      bin = Messages::SendJsonRequest.encode(pb_obj)
+
+      plugin_9.decode(bin) do |event|
+        expect(event.get("@metadata")["pb_oneof"]).to eq({})
+        expect(event.get("UserID") ).to eq(data[:UserID])
+        expect(event.get("Details") ).to eq({"field_a"=>"value_a"})
+      end
+    end # it
+  end # context pb3decoder_test9b
+
   ##################################################
   
   context "#pb3decoder_test10a" do
@@ -492,27 +516,28 @@ describe LogStash::Codecs::Protobuf do
     end
 
     it "should have only one option set for a double-choice oneOf" do
+      expected_metadata = {"options" => ["top_accommodation_id", "recommend_similar_accommodation_id"], "set"=> "top_accommodation_id"}
       input_criterion = {:sort_criterion => "descending", :top_accommodation_id => 4711}
       pb_obj = ProtoResultListCompositionCriteria.new(input_criterion)
 
       bin = ProtoResultListCompositionCriteria.encode(pb_obj)
       plugin_10.decode(bin) do |event|
-        expect(event.get("@metadata")["pb_oneof"]['accommodation_id']).to eq(:top_accommodation_id)
         expect(event.get("sort_criterion")).to eq(input_criterion[:sort_criterion])
         expect(event.get("top_accommodation_id")).to eq(input_criterion[:top_accommodation_id])
         expect(event.get("recommend_similar_accommodation_id")).to be_nil
+        expect(event.get("@metadata")["pb_oneof"]['accommodation_id']).to eq(expected_metadata)
       end
     end # it
-
-
   end # context pb3decoder_test10a
+
+
 
   context "#pb3decoder_test10b" do
 
     # same as 10a but now as a nested field and with a value that equals the default
 
     let(:plugin_10) { LogStash::Codecs::Protobuf.new("class_name" => "ProtoResultListComposerRequest", "class_file" => 'pb3/ResultListComposerRequest_pb.rb',
-      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
     before do
         plugin_10.register
     end
@@ -525,7 +550,7 @@ describe LogStash::Codecs::Protobuf do
 
       bin = ProtoResultListComposerRequest.encode(pb_obj)
       plugin_10.decode(bin) do |event|
-        expect(event.get("@metadata")["pb_oneof"]).to be_nil
+        # TODO add nested test for metadata
         expect(event.get("page_number") ).to eq(input_resultlist[:page_number])
         expect(event.get("results_per_page") ).to eq(input_resultlist[:results_per_page])
         expect(event.get("metadata") ).to eq(input_resultlist[:metadata])
@@ -534,8 +559,6 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("result_list_composition_criteria")["recommend_similar_accommodation_id"]).to be_nil
       end
     end # it
-
-
   end # context pb3decoder_test10b
 
   ##################################################
