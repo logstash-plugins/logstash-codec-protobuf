@@ -253,40 +253,32 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     puts "HELLO INPUT: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
-      puts "HELLO STRUCT!" # TODO remove
       result = JSON.parse input.to_json({
         :preserve_proto_fieldnames => true,
         :emit_defaults => true
       })
     when Google::Protobuf::MessageExts # it's a protobuf class
-      puts "HELLO CLASS!" # TODO remove
       result = pb3_class2hash(input)
     when ::Array
-      puts "HELLO LIST!" # TODO remove
       result = []
       input.each {|value|
         result << pb3_deep_to_hash(value)
       }
     when ::Hash
-      puts "HELLO DICT!" # TODO remove
       result = {}
       input.each {|key, value|
         result[key] = pb3_deep_to_hash(value)
       }
     when Symbol # is an Enum
-      puts "HELLO SYMBOL!" # TODO remove
       result = input.to_s.sub(':','')
     else # any other scalar
-      puts "HELLO SCALAR!" # TODO remove
       result = input
     end
-    puts "HELLO RESULT #{result}" # TODO remove
     result
   end
 
 
   def pb3_class2hash(input)
-    puts "HELLO CLASS2HASH #{input} " + input.class.name # TODO remove
     result = Hash.new
     input.to_h.each {|key, value|
       puts "HELLO FIELD: #{key} #{value} " + input[key].class.name # TODO remove
@@ -296,21 +288,24 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       value = input[key] if input[key].is_a? Google::Protobuf::Struct
       # If the field is a protobuf class then we want to pass it over as just that, not as a hash
       value = input[key] if input[key].is_a? Google::Protobuf::MessageExts
-      
-      # If the key is part of a one-of then it must only be set if it's the selected option.
-      # In codec versions <= 1.2.x this was not the case. The codec delivered default values 
-      # for every one-of option instead of respecting the XOR relation between them.
-      # The selected option's field name can be queried from input[parent_field] 
-      # where parent_field is the name of the one-of field outside the option list. 
-      # It's unclear though how to identify a) if a field is part of a one-of struct
-      # because the class of the chosen option will always be a scalar, 
-      # and b) the name of the parent field. As a workaround see the post-fix below.
 
+      # TODO why can't we use 
+      # pb3_deep_to_hash(input[key])
+      # here? Also why don't we just call input.keys and interate on that 
+      # instead of making this a hash first?
       result[key] = pb3_deep_to_hash(value)
     }
 
-    # Post-fix for one-ofs: the .to_h will generate default values for all one-of options 
-    # regardless of which one had been chosen. 
+    # If the key is part of a one-of then it must only be set if it's the selected option.
+    # In codec versions <= 1.2.x this was not the case. The .to_h delivered default values 
+    # for every one-of option regardless of which one had been chosen, instead of respecting the XOR relation between them.
+    # The selected option's field name can be queried from input[parent_field] 
+    # where parent_field is the name of the one-of field outside the option list. 
+    # It's unclear though how to identify a) if a field is part of a one-of struct
+    # because the class of the chosen option will always be a scalar, 
+    # and b) the name of the parent field. 
+    # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
+    # The we remove the other options which weren't set by the producer.
     lookup_classname = input.class.name.sub('::','.')
     lookup = Google::Protobuf::DescriptorPool.generated_pool.lookup(lookup_classname)
     unless lookup.nil?
@@ -318,19 +313,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       pb_class.descriptor.each_oneof { |field|
         # Find out which one-of option has been set
         chosen = input.send(field.name).to_s
-        puts "HELLO CHOSEN #{field.name} => '#{chosen}'" # TODO remove
         # Go through the options and remove the names of the non-chosen fields from the hash
         # Whacky solution, better ideas are welcome.
         field.each { | group_option |
           if group_option.name != chosen
             key = group_option.name.to_sym
-            puts "HELLO DELETE '#{group_option.name}' of '#{group_option.name.class}' vs #{result.keys}" # TODO remove
             result.delete(key)
           end
         }
       }
     end
-    puts "HELLO FINAL #{result}" # TODO remove
     result
   end
 
@@ -619,13 +611,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
     # Additionally recurse over any nested protobuf classes
     pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
-      puts "HELLO FOOBAR #{field.name} of #{field.type} type " # TODO remove
       # Get the value for the field which is a pb class
       pb_sub_object = pb_object.send(field.name)
-      # TODO excludes struct from this, maybe on Google::Protobuf::Map
       if !pb_sub_object.nil? and !field.subtype.nil? and !field.subtype.msgclass.nil?
           pb_sub_class = pb3_get_descriptorpool_name(field.subtype.msgclass)
-          meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
+          # exclude structs because they cannot contain message classes or one-ofs
+          unless pb_sub_class == "google.protobuf.Struct"
+            meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
+          end
       end
     }
 

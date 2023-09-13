@@ -479,7 +479,7 @@ describe LogStash::Codecs::Protobuf do
   context "#pb3decoder_test9b" do # same as 9a but with one-of metainfo activated
 
     let(:plugin_9) { LogStash::Codecs::Protobuf.new("class_name" => "messages.SendJsonRequest", "class_file" => 'pb3/struct_test_pb.rb',
-      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false) } # TODO set this to true and fix struct behaviour in metainfo
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)}
     before do
         plugin_9.register
     end
