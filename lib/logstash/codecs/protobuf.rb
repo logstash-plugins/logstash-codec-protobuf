@@ -212,7 +212,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def decode(data)
     if @protobuf_version == 3
-      decoded = @pb_builder.decode(data.to_s)
+      decoded = @pb_builder.decode(data.to_s)   
       h = pb3_deep_to_hash(decoded)
     else
       decoded = @pb_builder.parse(data.to_s)
@@ -251,6 +251,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def pb3_deep_to_hash(input)
+    puts "HELLO WORLD: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
@@ -262,7 +263,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       # when we've called to_h here it is already a nested hash, for the
       # structs we bubble down the original value instead.
       input.to_h.each {|key, value|
+        puts "HELLO HASH: #{key} #{value} " + input[key].class.name # TODO remove
         value = input[key] if input[key].is_a? Google::Protobuf::Struct
+        # If the key is part of a oneof then it must only be set if it's the selected option
+        # The selected option's field name can be queried from input[parent_field] where
+        #   parent_field is the name of the one-of field outside the option list. 
+        # TODO how can we find out if the field is part of a one-of?
         result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
       }
     when ::Array
@@ -284,7 +290,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def pb3_encode(event)
-
     datahash = event.to_hash
 
     is_recursive_call = !event.get('tags').nil? and event.get('tags').include? @pb3_typeconversion_tag
@@ -313,9 +318,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.warn("Protobuf encoding error 3: #{e.inspect}. Event discarded. Input data: #{datahash}. The event has been discarded. Backtrace: #{e.backtrace}")
     nil
   end
-
-
-
 
   def pb3_handle_type_errors(event, e, is_recursive_call, datahash)
     begin
@@ -550,11 +552,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class_name).msgclass
 
     pb_class.descriptor.each_oneof { |field|
-      field.each { | group_option |
-        if !pb_object.send(group_option.name).nil?
-            meta[field.name] = group_option.name
-        end
-      }
+      chosen = pb_object.send(field.name)
+      meta[field.name] = chosen
     }
 
     pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
