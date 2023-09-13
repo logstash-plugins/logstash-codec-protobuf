@@ -294,6 +294,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       # when we've called to_h here it is already a nested hash, for the
       # structs we bubble down the original value instead.
       value = input[key] if input[key].is_a? Google::Protobuf::Struct
+      # If the field is a protobuf class then we want to pass it over as just that, not as a hash
+      value = input[key] if input[key].is_a? Google::Protobuf::MessageExts
       
       # If the key is part of a one-of then it must only be set if it's the selected option.
       # In codec versions <= 1.2.x this was not the case. The codec delivered default values 
