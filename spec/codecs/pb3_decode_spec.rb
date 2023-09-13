@@ -27,6 +27,8 @@ describe LogStash::Codecs::Protobuf do
     end
   end
 
+  ##################################################
+
   context "config" do
     context "using class_file and include_path" do
       let(:plugin) {
@@ -71,12 +73,14 @@ describe LogStash::Codecs::Protobuf do
         }.not_to raise_error(RuntimeError)
       end # it
     end
-  end # context
+
+  end # context config
+
+  ##################################################
 
   context "#pb3decoder_test1" do
 
-
-    #### Test case 1: Decode simple protobuf ##############################################
+    # Test case 1: Decode simple protobuf
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new(
       "class_name" => "Unicorn", "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)
     }
@@ -101,9 +105,11 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
+  ##################################################
+
   context "#pb3decoder_test2" do
 
-    #### Test case 2: decode nested protobuf ##############################################
+    # Test case 2: decode nested protobuf
     let(:plugin_unicorn) { LogStash::Codecs::Protobuf.new("class_name" => "Unicorn",
      "include_path" => [pb_include_path + '/pb3/unicorn_pb.rb'], "protobuf_version" => 3)  }
 
@@ -125,9 +131,11 @@ describe LogStash::Codecs::Protobuf do
 
   end # context
 
+  ##################################################
+
   context "#pb3decoder_test3" do
 
-    #### Test case 3: decode ProbeResult ##############################################
+    # Test case 3: decode ProbeResult
     let(:plugin_3) { LogStash::Codecs::Protobuf.new("class_name" => "ProbeResult",
      "include_path" => [pb_include_path + '/pb3/ProbeResult_pb.rb'], "protobuf_version" => 3)  }
 
@@ -158,9 +166,11 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
+  ##################################################
+
   context "#pb3decoder_test4" do
 
-    #### Test case 4: decode PBDNSMessage ##############################################
+    # Test case 4: decode PBDNSMessage
     let(:plugin_4) { LogStash::Codecs::Protobuf.new("class_name" => "PBDNSMessage",
       "include_path" => [pb_include_path + '/pb3/dnsmessage_pb.rb'], "protobuf_version" => 3)  }
 
@@ -237,11 +247,13 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-  end # context
+  end # context pb3decoder_test4
+
+  ##################################################
 
   context "#pb3decoder_test5" do
 
-    #### Test case 5: decode test case for github issue 17 ##############################################
+    # Test case 5: decode test case for github issue 17
     let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
 
     before do
@@ -257,8 +269,9 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
+  end # context pb3decoder_test5
 
-  end # context
+  ##################################################
 
   context "#pb3decoder_test6" do
 
@@ -266,7 +279,7 @@ describe LogStash::Codecs::Protobuf do
     let(:execution_context) { double("execution_context")}
     let(:pipeline_id) {rand(36**8).to_s(36)}
 
-    # Test case 6: decode a message automatically loading the dependencies ##############################################################################
+    # Test case 6: decode a message automatically loading the dependencies
     let(:plugin) { LogStash::Codecs::Protobuf.new(
       "class_name" => "A.MessageA",
       "class_file" => [ 'messageA_pb.rb' ],
@@ -303,21 +316,20 @@ describe LogStash::Codecs::Protobuf do
     end # it
   end # context
 
-
-
-
-
+  ##################################################
 
   context "#pb3decoder_test7" do
 
-    #### Test case 6: decode test case for github issue 17 ##############################################
-    let(:plugin_7) { LogStash::Codecs::Protobuf.new("class_name" => "RepeatedEvents", "include_path" => [pb_include_path + '/pb3/events_pb.rb'], "protobuf_version" => 3)  }
+    # Test case 6: decode test case for github issue 17
+    let(:plugin_7) { LogStash::Codecs::Protobuf.new("class_name" => "RepeatedEvents", 
+      "include_path" => [pb_include_path + '/pb3/events_pb.rb'], "protobuf_version" => 3)  }
     before do
         plugin_7.register
     end
 
     it "should return an event from protobuf data with repeated top level objects" do
-      event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass # TODO this shouldnt be necessary because the classes are already
+      event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass 
+      # TODO this shouldnt be necessary because the classes are already
       # specified at the end of the _pb.rb files
       events_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass
       test_a = event_class.new({:id => "1", :msg => "a"})
@@ -334,13 +346,12 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-
   end # context pb3decoder_test7
 
+  ##################################################
 
   context "#pb3decoder_test8a" do
 
-    ##################################################
     let(:plugin_8a) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
     before do
@@ -370,15 +381,12 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-
   end # context pb3decoder_test8a
 
-
-
+  ##################################################
 
   context "#pb3decoder_test8b" do
 
-    ##################################################
     let(:plugin_8b) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
     before do
@@ -406,13 +414,12 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-
   end # context pb3decoder_test8b
 
-
+  ##################################################
+    
   context "#pb3decoder_test8c" do # same test as 8a just with different one_of options selected
 
-    ##################################################
     let(:plugin_8c) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
     before do
@@ -441,12 +448,12 @@ describe LogStash::Codecs::Protobuf do
       end
     end # it
 
-
   end # context pb3decoder_test8c
 
+  ##################################################
+    
   context "#pb3decoder_test9" do
 
-    ##################################################
     let(:plugin_9) { LogStash::Codecs::Protobuf.new("class_name" => "messages.SendJsonRequest", "class_file" => 'pb3/struct_test_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
       # TODO: pb3_set_oneof_metainfo => true is broken when running with a struct field
@@ -472,5 +479,76 @@ describe LogStash::Codecs::Protobuf do
 
     end # it
   end # context pb3decoder_test9
+
+  
+  ##################################################
+  
+
+  context "#pb3decoder_test10" do
+
+    let(:plugin_10) { LogStash::Codecs::Protobuf.new("class_name" => "ProtoResultListComposerRequest", "class_file" => 'pb3/ResultListComposerRequest_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
+    before do
+        plugin_10.register
+    end
+
+    it "should have only one option set for a double-choice oneOf" do
+      input_criterion = {:sort_criterion => "descending", :top_accommodation_id => 4711}
+      input_resultlist = {:metadata => [], :page_number => 3, :results_per_page => 100, 
+          :result_list_composition_criteria => ProtoResultListCompositionCriteria.new(input_criterion)}
+      pb_obj = ProtoResultListComposerRequest.new(input_resultlist)
+
+      bin = ProtoResultListComposerRequest.encode(pb_obj)
+      plugin_10.decode(bin) do |event|
+        expect(event.get("page_number") ).to eq(input_resultlist[:page_number])
+        expect(event.get("results_per_page") ).to eq(input_resultlist[:results_per_page])
+        expect(event.get("metadata") ).to eq(input_resultlist[:metadata])
+        expect(event.get("result_list_composition_criteria")["sort_criterion"] ).to eq(input_criterion[:sort_criterion])
+        expect(event.get("result_list_composition_criteria")["top_accommodation_id"] ).to eq(input_criterion[:top_accommodation_id])
+        expect(event.get("result_list_composition_criteria")["recommend_similar_accommodation_id"] ).to be_nil
+      end
+    end # it
+
+
+  end # context pb3decoder_test10
+
+  ##################################################
+=begin
+  context "#pb3decoder_test11" do
+
+    # TODO make this a test case where the one-of has 3 options. Test that two of them are not set.
+
+    let(:plugin_11) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
+    before do
+        plugin_11.register
+    end
+
+    it "should have only one option set for a triple-choice oneOf" do
+      pegasus_data = {:wings_length => 200}
+      horsey = FantasyPegasus.new(pegasus_data)
+
+      braid_data = {:braid_thickness => 3, :braiding_style => "french"}
+      tail_data = {:tail_length => 80, :braided => BraidedHorseTail.new(braid_data) }
+      tail = FantasyHorseTail.new(tail_data)
+
+      data = {:name=>"Reinhold", :pegasus => horsey, :tail => tail}
+      pb_obj = FantasyHorse.new(data)
+      bin = FantasyHorse.encode(pb_obj)
+      plugin_11.decode(bin) do |event|
+
+        expect(event.get("name") ).to eq(data[:name])
+        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
+        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("pegasus")
+        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"] ).to eq("braided")
+
+      end
+    end # it
+
+
+  end # context pb3decoder_test11
+=end
 
 end # describe

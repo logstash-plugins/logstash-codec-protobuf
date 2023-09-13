@@ -25,6 +25,7 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
     oneof :hair_type do
       optional :braided, :message, 2, "BraidedHorseTail"
       optional :natural, :message, 3, "NaturalHorseTail"
+      optional :short, :message, 4, "ShortHorseTail"
     end
   end
   add_message "BraidedHorseTail" do
@@ -33,6 +34,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
   add_message "NaturalHorseTail" do
     optional :wavyness, :string, 1
+  end
+  add_message "ShortHorseTail" do
+    optional :cut, :string, 1
   end
 end
 
