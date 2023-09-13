@@ -220,7 +220,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
     e = LogStash::Event.new(hashed)
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
-      e.set("[@metadata][pb_oneof]", pb3_get_oneof_metainfo(decoded, @class_name))
+      meta = pb3_get_oneof_metainfo(decoded, @class_name)
+      puts "HELLO META #{meta} " # TODO remove
+      e.set("[@metadata][pb_oneof]", meta)
     end
     yield e if block_given?
   rescue => ex
@@ -250,7 +252,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   private
   def pb3_deep_to_hash(input)
-    puts "HELLO INPUT: #{input} " + input.class.name # TODO remove
+    # puts "HELLO INPUT: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
@@ -281,7 +283,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def pb3_class2hash(input)
     result = Hash.new
     input.to_h.each {|key, value|
-      puts "HELLO FIELD: #{key} #{value} " + input[key].class.name # TODO remove
+      # puts "HELLO FIELD: #{key} #{value} " + input[key].class.name # TODO remove
       
       # when we've called to_h here it is already a nested hash, for the
       # structs we bubble down the original value instead.
@@ -661,7 +663,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
                 original_value
               else
                 proto_obj = pb2_create_instance(c)
-                proto_obj.new(pb2_prepare_for_encoding(original_value, c)) # this line is reached in the colourtest for an enum. Enums should not be instantiated. Should enums even be in the messageclasses? I dont think so! TODO bug
+                proto_obj.new(pb2_prepare_for_encoding(original_value, c)) # this line is reached in the colourtest for an enum. 
+                # Enums should not be instantiated. Should enums even be in the messageclasses? I dont think so!
               end # if is array
           end # if datahash_include
         end # do

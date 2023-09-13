@@ -590,8 +590,61 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("@metadata")["pb_oneof"]).to be_nil
       end
     end # it
-
-
   end # context pb3decoder_test11
+
+  ##################################################
+
+  context "#pb3decoder_test12" do
+    # One-of metadata with nested class names. Class lookup in the pb descriptor pool has previously been an issue.
+    let(:plugin_11) { LogStash::Codecs::Protobuf.new("class_name" => "company.communication.directories.PhoneDirectory", "class_file" => 'pb3/PhoneDirectory_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
+    before do
+        plugin_11.register
+    end
+
+    it "should do one-of meta info lookup for nested classes" do
+      contacts = []
+      hans = {:name => "Hans Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "hans@test.com"}
+      contacts << Company::Communication::Directories::Contact.new(hans)
+      jane = {:name => "Jane Trial", :address => "Test street 13, 90210 Test hills", :prefered_phone => 1234567}
+      contacts << Company::Communication::Directories::Contact.new(jane)
+      kimmy = {:name => "Kimmy Experiment", :address => "Test street 14, 90210 Test hills", :prefered_fax => 666777888}
+      contacts << Company::Communication::Directories::Contact.new(kimmy)
+
+      data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
+      pb_obj = Company::Communication::Directories::PhoneDirectory.new(data)
+      bin = Company::Communication::Directories::PhoneDirectory.encode(pb_obj)
+      plugin_11.decode(bin) do |event|
+        expect(event.get("internal")).to eq(data[:internal])
+        expect(event.get("external")).to be_nil
+        expect(event.get("@metadata")["scope"]).to eq('internal')
+
+        expect(event.get("contacts")[0]["name"]).to eq(hans[:name])
+        expect(event.get("contacts")[0]["address"]).to eq(hans[:address])
+        expect(event.get("contacts")[0]["prefered_email"]).to eq(hans[:prefered_email])
+        expect(event.get("contacts")[0]["prefered_fax"]).to be_nil
+        expect(event.get("contacts")[0]["prefered_phone"]).to be_nil
+        expect(event.get("@metadata")["contacts"][0]['prefered_contact']).to eq('prefered_email')
+    
+        expect(event.get("contacts")[1]["name"]).to eq(jane[:name])
+        expect(event.get("contacts")[1]["address"]).to eq(jane[:address])
+        expect(event.get("contacts")[1]["prefered_phone"]).to eq(jane[:prefered_email])
+        expect(event.get("contacts")[1]["prefered_fax"]).to be_nil
+        expect(event.get("contacts")[1]["prefered_email"]).to be_nil
+        expect(event.get("@metadata")["contacts"][1]['prefered_contact']).to eq('prefered_phone')
+
+        expect(event.get("contacts")[2]["name"]).to eq(kimmy[:name])
+        expect(event.get("contacts")[2]["address"]).to eq(kimmy[:address])
+        expect(event.get("contacts")[2]["prefered_fax"]).to eq(kimmy[:prefered_email])
+        expect(event.get("contacts")[2]["prefered_email"]).to be_nil
+        expect(event.get("contacts")[2]["prefered_phone"]).to be_nil
+        expect(event.get("@metadata")["contacts"][2]['prefered_contact']).to eq('prefered_fax')
+    
+        
+      end
+    end # it
+  end # context pb3decoder_test11
+
+  ##################################################
 
 end # describe
