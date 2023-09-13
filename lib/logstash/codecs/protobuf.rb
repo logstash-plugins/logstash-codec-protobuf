@@ -213,9 +213,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
-      if @pb3_set_oneof_metainfo
-        meta = pb3_get_oneof_metainfo(decoded, @class_name)
-      end
       h = pb3_deep_to_hash(decoded)
     else
       decoded = @pb_builder.parse(data.to_s)
@@ -223,6 +220,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
     e = LogStash::Event.new(h)
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
+      meta = pb3_get_oneof_metainfo(decoded, @class_name)
       e.set("[@metadata][pb_oneof]", meta)
     end
     yield e if block_given?
