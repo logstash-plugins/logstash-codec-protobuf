@@ -122,9 +122,9 @@ describe LogStash::Codecs::Protobuf do
       plugin_unicorn.decode(bin) do |event|
         expect(event.get("name") ).to eq(data[:name] )
         expect(event.get("fur_colour") ).to eq("GLITTER" )
-        expect(event.get("father")["name"] ).to eq(data[:father][:name] )
-        expect(event.get("father")["age"] ).to eq(data[:father][:age] )
-        expect(event.get("father")["fur_colour"] ).to eq("SILVER")
+        expect(event.get("father")["name"]).to eq(data[:father][:name] )
+        expect(event.get("father")["age"]).to eq(data[:father][:age] )
+        expect(event.get("father")["fur_colour"]).to eq("SILVER")
 
       end
     end # it
@@ -157,11 +157,11 @@ describe LogStash::Codecs::Protobuf do
       bin = probe_result_class.encode(probe_result_object)
       plugin_3.decode(bin) do |event|
         expect(event.get("UUID") ).to eq(probe_result_data[:UUID] )
-        expect(event.get("TaskPingIPv4Result")["status"] ).to eq("ERROR")
-        expect(event.get("TaskPingIPv4Result")["latency"] ).to eq(ping_result_data[:latency] )
-        expect(event.get("TaskPingIPv4Result")["ip"] ).to eq(ping_result_data[:ip] )
-        expect(event.get("TaskPingIPv4Result")["probe_ip"] ).to eq(ping_result_data[:probe_ip] )
-        expect(event.get("TaskPingIPv4Result")["geolocation"] ).to eq(ping_result_data[:geolocation] )
+        expect(event.get("TaskPingIPv4Result")["status"]).to eq("ERROR")
+        expect(event.get("TaskPingIPv4Result")["latency"]).to eq(ping_result_data[:latency] )
+        expect(event.get("TaskPingIPv4Result")["ip"]).to eq(ping_result_data[:ip] )
+        expect(event.get("TaskPingIPv4Result")["probe_ip"]).to eq(ping_result_data[:probe_ip] )
+        expect(event.get("TaskPingIPv4Result")["geolocation"]).to eq(ping_result_data[:geolocation] )
       end
     end # it
   end # context
@@ -232,12 +232,12 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("socketFamily") ).to eq("INET6" )
         expect(event.get("socketProtocol") ).to eq("TCP" )
 
-        expect(event.get("question")["qName"] ).to eq(dns_question_data[:qName] )
-        expect(event.get("question")["qType"] ).to eq(dns_question_data[:qType] )
-        expect(event.get("question")["qClass"] ).to eq(dns_question_data[:qClass] )
+        expect(event.get("question")["qName"]).to eq(dns_question_data[:qName] )
+        expect(event.get("question")["qType"]).to eq(dns_question_data[:qType] )
+        expect(event.get("question")["qClass"]).to eq(dns_question_data[:qClass] )
 
         ['rcode', 'appliedPolicy','tags','queryTimeSec','queryTimeUsec'].each { |n|   expect(event.get('response')[n]).to eq(dns_response_data[n.to_sym] )   }
-        expect(event.get("response")['appliedPolicyType'] ).to eq("NSIP" )
+        expect(event.get("response")['appliedPolicyType']).to eq("NSIP" )
 
         dns_rr_data.each_with_index { | data, index |
           found = event.get("response")['rrs'][index]
@@ -311,7 +311,7 @@ describe LogStash::Codecs::Protobuf do
 
       plugin.decode(bin) do |event|
         expect(event.get("name") ).to eq(data[:name] )
-        expect(event.get("header")['name'] ).to eq(header_data[:name])
+        expect(event.get("header")['name']).to eq(header_data[:name])
       end
     end # it
   end # context
@@ -339,10 +339,10 @@ describe LogStash::Codecs::Protobuf do
       bin = events_class.encode(event_obj)
       plugin_7.decode(bin) do |event|
         expect(event.get("repeated_events").size ).to eq(3)
-        expect(event.get("repeated_events")[0]["id"] ).to eq("1")
-        expect(event.get("repeated_events")[2]["id"] ).to eq("3")
-        expect(event.get("repeated_events")[0]["msg"] ).to eq("a")
-        expect(event.get("repeated_events")[2]["msg"] ).to eq("c")
+        expect(event.get("repeated_events")[0]["id"]).to eq("1")
+        expect(event.get("repeated_events")[2]["id"]).to eq("3")
+        expect(event.get("repeated_events")[0]["msg"]).to eq("a")
+        expect(event.get("repeated_events")[2]["msg"]).to eq("c")
       end
     end # it
 
@@ -372,11 +372,11 @@ describe LogStash::Codecs::Protobuf do
       plugin_8a.decode(bin) do |event|
 
         expect(event.get("name") ).to eq(data[:name])
-        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
-        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
-        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
-        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("pegasus")
-        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"] ).to eq("braided")
+        expect(event.get("pegasus")["wings_length"]).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length']).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style']).to eq(braid_data[:braiding_style])
+        expect(event.get("@metadata")["pb_oneof"]["horse_type"]).to eq("pegasus")
+        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"]).to eq("braided")
 
       end
     end # it
@@ -406,9 +406,9 @@ describe LogStash::Codecs::Protobuf do
       bin = FantasyHorse.encode(pb_obj)
       plugin_8b.decode(bin) do |event|
         expect(event.get("name") ).to eq(data[:name])
-        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
-        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
-        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
+        expect(event.get("pegasus")["wings_length"]).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length']).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style']).to eq(braid_data[:braiding_style])
         expect(event.get("@metadata")["pb_oneof"]).to be_nil
 
       end
@@ -439,11 +439,11 @@ describe LogStash::Codecs::Protobuf do
       bin = FantasyHorse.encode(pb_obj)
       plugin_8c.decode(bin) do |event|
         expect(event.get("name") ).to eq(data[:name])
-        expect(event.get("unicorn")["horn_length"] ).to eq(unicorn_data[:horn_length])
-        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
-        expect(event.get("tail")['natural']['wavyness'] ).to eq(natural_data[:wavyness])
-        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("unicorn")
-        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"] ).to eq("natural")
+        expect(event.get("unicorn")["horn_length"]).to eq(unicorn_data[:horn_length])
+        expect(event.get("tail")['tail_length']).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['natural']['wavyness']).to eq(natural_data[:wavyness])
+        expect(event.get("@metadata")["pb_oneof"]["horse_type"]).to eq("unicorn")
+        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"]).to eq("natural")
 
       end
     end # it
@@ -483,8 +483,33 @@ describe LogStash::Codecs::Protobuf do
   
   ##################################################
   
+  context "#pb3decoder_test10a" do
 
-  context "#pb3decoder_test10" do
+    let(:plugin_10) { LogStash::Codecs::Protobuf.new("class_name" => "ProtoResultListCompositionCriteria", "class_file" => 'pb3/ResultListComposerRequest_pb.rb',
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true) }
+    before do
+        plugin_10.register
+    end
+
+    it "should have only one option set for a double-choice oneOf" do
+      input_criterion = {:sort_criterion => "descending", :top_accommodation_id => 4711}
+      pb_obj = ProtoResultListCompositionCriteria.new(input_criterion)
+
+      bin = ProtoResultListCompositionCriteria.encode(pb_obj)
+      plugin_10.decode(bin) do |event|
+        expect(event.get("@metadata")["pb_oneof"]['accommodation_id']).to eq(:top_accommodation_id)
+        expect(event.get("sort_criterion")).to eq(input_criterion[:sort_criterion])
+        expect(event.get("top_accommodation_id")).to eq(input_criterion[:top_accommodation_id])
+        expect(event.get("recommend_similar_accommodation_id")).to be_nil
+      end
+    end # it
+
+
+  end # context pb3decoder_test10a
+
+  context "#pb3decoder_test10b" do
+
+    # same as 10a but now as a nested field and with a value that equals the default
 
     let(:plugin_10) { LogStash::Codecs::Protobuf.new("class_name" => "ProtoResultListComposerRequest", "class_file" => 'pb3/ResultListComposerRequest_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
@@ -492,34 +517,35 @@ describe LogStash::Codecs::Protobuf do
         plugin_10.register
     end
 
-    it "should have only one option set for a double-choice oneOf" do
-      input_criterion = {:sort_criterion => "descending", :top_accommodation_id => 4711}
+    it "should have only one option set for a nested double-choice oneOf" do
+      input_criterion = {:sort_criterion => "descending", :top_accommodation_id => 0}
       input_resultlist = {:metadata => [], :page_number => 3, :results_per_page => 100, 
           :result_list_composition_criteria => ProtoResultListCompositionCriteria.new(input_criterion)}
       pb_obj = ProtoResultListComposerRequest.new(input_resultlist)
 
       bin = ProtoResultListComposerRequest.encode(pb_obj)
       plugin_10.decode(bin) do |event|
+        expect(event.get("@metadata")["pb_oneof"]).to be_nil
         expect(event.get("page_number") ).to eq(input_resultlist[:page_number])
         expect(event.get("results_per_page") ).to eq(input_resultlist[:results_per_page])
         expect(event.get("metadata") ).to eq(input_resultlist[:metadata])
-        expect(event.get("result_list_composition_criteria")["sort_criterion"] ).to eq(input_criterion[:sort_criterion])
-        expect(event.get("result_list_composition_criteria")["top_accommodation_id"] ).to eq(input_criterion[:top_accommodation_id])
-        expect(event.get("result_list_composition_criteria")["recommend_similar_accommodation_id"] ).to be_nil
+        expect(event.get("result_list_composition_criteria")["sort_criterion"]).to eq(input_criterion[:sort_criterion])
+        expect(event.get("result_list_composition_criteria")["top_accommodation_id"]).to eq(input_criterion[:top_accommodation_id])
+        expect(event.get("result_list_composition_criteria")["recommend_similar_accommodation_id"]).to be_nil
       end
     end # it
 
 
-  end # context pb3decoder_test10
+  end # context pb3decoder_test10b
 
   ##################################################
-=begin
+
   context "#pb3decoder_test11" do
 
-    # TODO make this a test case where the one-of has 3 options. Test that two of them are not set.
+    # XOR test for one-of but this time with objects instead of scalars, also triple-option of which only 1 must be set.
 
     let(:plugin_11) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
-      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
+      "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
     before do
         plugin_11.register
     end
@@ -538,17 +564,15 @@ describe LogStash::Codecs::Protobuf do
       plugin_11.decode(bin) do |event|
 
         expect(event.get("name") ).to eq(data[:name])
-        expect(event.get("pegasus")["wings_length"] ).to eq(pegasus_data[:wings_length])
-        expect(event.get("tail")['tail_length'] ).to eq(tail_data[:tail_length])
-        expect(event.get("tail")['braided']['braiding_style'] ).to eq(braid_data[:braiding_style])
-        expect(event.get("@metadata")["pb_oneof"]["horse_type"] ).to eq("pegasus")
-        expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"] ).to eq("braided")
-
+        expect(event.get("pegasus")["wings_length"]).to eq(pegasus_data[:wings_length])
+        expect(event.get("tail")['tail_length']).to eq(tail_data[:tail_length])
+        expect(event.get("tail")['braided']['braiding_style']).to eq(braid_data[:braiding_style])
+        expect(event.get("tail")['natural']).to be_nil
+        expect(event.get("tail")['short']).to be_nil
       end
     end # it
 
 
   end # context pb3decoder_test11
-=end
 
 end # describe
