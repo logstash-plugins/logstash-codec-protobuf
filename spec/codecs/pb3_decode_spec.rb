@@ -164,7 +164,7 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("TaskPingIPv4Result")["geolocation"]).to eq(ping_result_data[:geolocation] )
       end
     end # it
-  end # context
+  end # context #pb3decoder_test3
 
   ##################################################
 
@@ -587,6 +587,7 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("tail")['braided']['braiding_style']).to eq(braid_data[:braiding_style])
         expect(event.get("tail")['natural']).to be_nil
         expect(event.get("tail")['short']).to be_nil
+        # todo expect the name of the one-of group to be nil
         expect(event.get("@metadata")["pb_oneof"]).to be_nil
       end
     end # it
@@ -596,25 +597,27 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test12" do
     # One-of metadata with nested class names. Class lookup in the pb descriptor pool has previously been an issue.
-    let(:plugin_11) { LogStash::Codecs::Protobuf.new("class_name" => "company.communication.directories.PhoneDirectory", "class_file" => 'pb3/PhoneDirectory_pb.rb',
+    let(:plugin_12) { LogStash::Codecs::Protobuf.new("class_name" => "company.communication.directories.PhoneDirectory", "class_file" => 'pb3/PhoneDirectory_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
     before do
-        plugin_11.register
+        plugin_12.register
     end
 
     it "should do one-of meta info lookup for nested classes" do
       contacts = []
-      hans = {:name => "Hans Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "hans@test.com"}
+      # TODO hans = {:name => "Hans Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "hans@test.com"}
+      hans = {:name => "Hans Test", :prefered_email => "hans@test.com"} # TODO remove
       contacts << Company::Communication::Directories::Contact.new(hans)
       jane = {:name => "Jane Trial", :address => "Test street 13, 90210 Test hills", :prefered_phone => 1234567}
-      contacts << Company::Communication::Directories::Contact.new(jane)
+      # TODO contacts << Company::Communication::Directories::Contact.new(jane)
       kimmy = {:name => "Kimmy Experiment", :address => "Test street 14, 90210 Test hills", :prefered_fax => 666777888}
-      contacts << Company::Communication::Directories::Contact.new(kimmy)
+      # TODO contacts << Company::Communication::Directories::Contact.new(kimmy)
 
-      data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
+      # TODO data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
+      data = {:contacts => contacts} # TODO remove
       pb_obj = Company::Communication::Directories::PhoneDirectory.new(data)
       bin = Company::Communication::Directories::PhoneDirectory.encode(pb_obj)
-      plugin_11.decode(bin) do |event|
+      plugin_12.decode(bin) do |event|
         expect(event.get("internal")).to eq(data[:internal])
         expect(event.get("external")).to be_nil
         expect(event.get("@metadata")["scope"]).to eq('internal')
@@ -640,7 +643,6 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("contacts")[2]["prefered_phone"]).to be_nil
         expect(event.get("@metadata")["contacts"][2]['prefered_contact']).to eq('prefered_fax')
     
-        
       end
     end # it
   end # context pb3decoder_test11

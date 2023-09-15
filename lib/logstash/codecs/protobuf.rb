@@ -213,27 +213,28 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
-      hashed = pb3_deep_to_hash(decoded)
+      hashed = pb3_to_hash(decoded)
     else # version = 2
       decoded = @pb_builder.parse(data.to_s)
       hashed = decoded.to_hash
     end
+    puts "HELLO EVENT #{hashed.inspect}" # TODO remove
     e = LogStash::Event.new(hashed)
+    puts "HELLO DONE #{e.inspect}" # TODO remove
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
       meta = pb3_get_oneof_metainfo(decoded, @class_name)
-      puts "HELLO META #{meta} " # TODO remove
+      puts "HELLO @metadata #{meta} " # TODO remove
       e.set("[@metadata][pb_oneof]", meta)
     end
     yield e if block_given?
   rescue => ex
     @logger.warn("Couldn't decode protobuf: #{ex.inspect}")
-    if stop_on_error
+    if @stop_on_error
       raise ex
     else # keep original message so that the user can debug it.
       yield LogStash::Event.new(
         "message" => data, "tags" => ["_protobufdecodefailure"],
-        "decoder_exception" => "#{ex.inspect}"
-      )
+        "decoder_exception" => "#{ex.inspect}")
     end
   end # def decode
 
@@ -251,8 +252,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   private
-  def pb3_deep_to_hash(input)
-    # puts "HELLO INPUT: #{input} " + input.class.name # TODO remove
+  def pb3_to_hash(input)
+    puts "HELLO INPUT: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
@@ -260,45 +261,36 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         :emit_defaults => true
       })
     when Google::Protobuf::MessageExts # it's a protobuf class
-      result = pb3_class2hash(input)
+      result = Hash.new
+      input.clone().to_h.keys.each {|key|
+        value = input.send(key)
+        result[key] = pb3_to_hash(value)
+      }
+      result = oneof_clean(result, input)
     when ::Array
+    when Google::Protobuf::RepeatedField
       result = []
       input.each {|value|
-        result << pb3_deep_to_hash(value)
+        result << pb3_to_hash(value)
       }
     when ::Hash
       result = {}
       input.each {|key, value|
-        result[key] = pb3_deep_to_hash(value)
+        result[key] = pb3_to_hash(value)
       }
     when Symbol # is an Enum
       result = input.to_s.sub(':','')
     else # any other scalar
       result = input
     end
+    puts "HELLO RESULT #{result.inspect}" # TODO remove
     result
   end
 
 
-  def pb3_class2hash(input)
-    result = Hash.new
-    input.to_h.each {|key, value|
-      # puts "HELLO FIELD: #{key} #{value} " + input[key].class.name # TODO remove
-      
-      # when we've called to_h here it is already a nested hash, for the
-      # structs we bubble down the original value instead.
-      value = input[key] if input[key].is_a? Google::Protobuf::Struct
-      # If the field is a protobuf class then we want to pass it over as just that, not as a hash
-      value = input[key] if input[key].is_a? Google::Protobuf::MessageExts
-
-      # TODO why can't we use 
-      # pb3_deep_to_hash(input[key])
-      # here? Also why don't we just call input.keys and interate on that 
-      # instead of making this a hash first?
-      result[key] = pb3_deep_to_hash(value)
-    }
-
-    # If the key is part of a one-of then it must only be set if it's the selected option.
+  # For one-of options, remove the non-chosen options 
+  def oneof_clean(datahash, pb_obj)
+    # If a field is part of a one-of then it must only be set if it's the selected option.
     # In codec versions <= 1.2.x this was not the case. The .to_h delivered default values 
     # for every one-of option regardless of which one had been chosen, instead of respecting the XOR relation between them.
     # The selected option's field name can be queried from input[parent_field] 
@@ -308,24 +300,68 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # and b) the name of the parent field. 
     # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
     # The we remove the other options which weren't set by the producer.
-    lookup_classname = input.class.name.sub('::','.')
+    lookup_classname = pb_obj.class.name.sub('::','.')
     lookup = Google::Protobuf::DescriptorPool.generated_pool.lookup(lookup_classname)
     unless lookup.nil?
       pb_class = lookup.msgclass
       pb_class.descriptor.each_oneof { |field|
         # Find out which one-of option has been set
-        chosen = input.send(field.name).to_s
+        chosen = pb_obj.send(field.name).to_s
         # Go through the options and remove the names of the non-chosen fields from the hash
         # Whacky solution, better ideas are welcome.
         field.each { | group_option |
           if group_option.name != chosen
             key = group_option.name.to_sym
-            result.delete(key)
+            datahash.delete(key)
           end
         }
       }
-    end
-    result
+    end # unless
+  datahash
+  end
+
+
+  # Extract the selected options for each one-of field of a given encoded object.
+  # Some consumers want to know which option of a one-of had been chosen.
+  # Example: a field foo of type one-of with options { int bar = 1; int bar = 2}
+  # for which the producer has set the value bar = 999
+  # would lead to foo = bar as the metainfo
+  def pb3_get_oneof_metainfo(pb_object, pb_class_name)
+    meta = {}
+    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class_name).msgclass
+    puts "HELLO META CLASS pb_class_name"
+    # Iterate over the one-of fields:
+    pb_class.descriptor.each_oneof { |field|
+      puts "HELLO ONEOFFIELD #{field.name}" # TODO remove
+      #puts "HELLO METHODS #{field.methods}" # TODO remove
+      #puts "HELLO VARIABLES #{field.instance_variables}" # TODO remove
+      # Find out which option has been set by the producer:
+      chosen = pb_object.send(field.name).to_s
+      # List the options. This will be needed later for detecting one-of fields while decoding.
+      #options = []
+      #field.each { | group_option |
+      #  options << group_option.name
+      #}
+      # meta[field.name] = {:set=>chosen.to_s, :options=>options}
+      # (deactivated b/c we don't need this right now)
+      meta[field.name] = chosen
+    }
+
+    puts "HELLO META FROM NESTED " # TODO rremoe
+    # Additionally recurse over any nested protobuf classes
+    pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
+      # Get the value for the field which is a pb class
+      pb_sub_object = pb_object.send(field.name)
+      if !pb_sub_object.nil? and !field.subtype.nil? and !field.subtype.msgclass.nil?
+          pb_sub_class = pb3_get_descriptorpool_name(field.subtype.msgclass)
+          # exclude structs because they cannot contain message classes or one-ofs
+          unless pb_sub_class == "google.protobuf.Struct"
+            meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
+          end
+      end
+    }
+    puts "HELLO FINAL META #{meta}" # TODO remove
+    meta
   end
 
 
@@ -587,46 +623,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     datahash
   end
 
-  # Extract the selected options for each one-of field of a given encoded object.
-  # Some consumers want to know which option of a one-of had been chosen.
-  # Example: a field foo of type one-of with options { int bar = 1; int bar = 2}
-  # for which the producer has set the value bar = 999
-  # would lead to 
-  # TODO
-  def pb3_get_oneof_metainfo(pb_object, pb_class_name)
-    meta = {}
-    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class_name).msgclass
-
-    # Iterate over the one-of fields:
-    pb_class.descriptor.each_oneof { |field|
-      # Find out which option has been set by the producer:
-      chosen = pb_object.send(field.name).to_s
-      # List the options. This will be needed later for detecting one-of fields while decoding.
-      #options = []
-      #field.each { | group_option |
-      #  options << group_option.name
-      #}
-      # meta[field.name] = {:set=>chosen.to_s, :options=>options}
-      # (deactivated b/c we don't need this right now)
-      meta[field.name] = chosen
-    }
-
-    # Additionally recurse over any nested protobuf classes
-    pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
-      # Get the value for the field which is a pb class
-      pb_sub_object = pb_object.send(field.name)
-      if !pb_sub_object.nil? and !field.subtype.nil? and !field.subtype.msgclass.nil?
-          pb_sub_class = pb3_get_descriptorpool_name(field.subtype.msgclass)
-          # exclude structs because they cannot contain message classes or one-ofs
-          unless pb_sub_class == "google.protobuf.Struct"
-            meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
-          end
-      end
-    }
-
-    meta
-  end
-
 
   def pb2_encode(event)
     data = pb2_prepare_for_encoding(event.to_hash, @class_name)
@@ -717,7 +713,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     raise e
   end
-
 
 
   def pb2_metadata_analyis(filename)
