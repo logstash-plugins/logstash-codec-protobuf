@@ -275,7 +275,6 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test6" do
 
-
     let(:execution_context) { double("execution_context")}
     let(:pipeline_id) {rand(36**8).to_s(36)}
 
@@ -308,8 +307,8 @@ describe LogStash::Codecs::Protobuf do
 
       message_object = message_class.new(data)
       bin = message_class.encode(message_object)
-
       plugin.decode(bin) do |event|
+        puts "HELLO RSPEC #{event.inspect} #{event.to_hash}"
         expect(event.get("name")).to eq(data[:name] )
         expect(event.get("header")['name']).to eq(header_data[:name])
       end
@@ -328,15 +327,11 @@ describe LogStash::Codecs::Protobuf do
     end
 
     it "should return an event from protobuf data with repeated top level objects" do
-      event_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass 
-      # TODO this shouldnt be necessary because the classes are already
-      # specified at the end of the _pb.rb files
-      events_class = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass
-      test_a = event_class.new({:id => "1", :msg => "a"})
-      test_b = event_class.new({:id => "2", :msg => "b"})
-      test_c = event_class.new({:id => "3", :msg => "c"})
-      event_obj = events_class.new({:repeated_events=>[test_a, test_b, test_c]})
-      bin = events_class.encode(event_obj)
+      test_a = RepeatedEvent.new({:id => "1", :msg => "a"})
+      test_b = RepeatedEvent.new({:id => "2", :msg => "b"})
+      test_c = RepeatedEvent.new({:id => "3", :msg => "c"})
+      event_obj = RepeatedEvents.new({:repeated_events=>[test_a, test_b, test_c]})
+      bin = RepeatedEvents.encode(event_obj)
       plugin_7.decode(bin) do |event|
         expect(event.get("repeated_events").size ).to eq(3)
         expect(event.get("repeated_events")[0]["id"]).to eq("1")
@@ -387,6 +382,8 @@ describe LogStash::Codecs::Protobuf do
 
   context "#pb3decoder_test8b" do
 
+    # same test as 8a just with different one_of options selected
+
     let(:plugin_8b) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => false)  }
     before do
@@ -418,7 +415,9 @@ describe LogStash::Codecs::Protobuf do
 
   ##################################################
     
-  context "#pb3decoder_test8c" do # same test as 8a just with different one_of options selected
+  context "#pb3decoder_test8c" do 
+
+    # activate the meta info for the one-ofs
 
     let(:plugin_8c) { LogStash::Codecs::Protobuf.new("class_name" => "FantasyHorse", "class_file" => 'pb3/FantasyHorse_pb.rb',
       "protobuf_root_directory" => pb_include_path, "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true)  }
@@ -431,7 +430,7 @@ describe LogStash::Codecs::Protobuf do
       horsey = FantasyUnicorn.new(unicorn_data)
 
       natural_data = {:wavyness => "B"}
-      tail_data = {:tail_length => 80, :natural => NaturalHorseTail.new(natural_data) }
+      tail_data = {:natural => NaturalHorseTail.new(natural_data) }
       tail = FantasyHorseTail.new(tail_data)
 
       data = {:name=>"Hubert", :unicorn => horsey, :tail => tail}
@@ -440,7 +439,8 @@ describe LogStash::Codecs::Protobuf do
       plugin_8c.decode(bin) do |event|
         expect(event.get("name")).to eq(data[:name])
         expect(event.get("unicorn")["horn_length"]).to eq(unicorn_data[:horn_length])
-        expect(event.get("tail")['tail_length']).to eq(tail_data[:tail_length])
+        expect(event.get("unicorn")["horn_colour"]).to be_nil
+        expect(event.get("tail")['tail_length']).to be_nil
         expect(event.get("tail")['natural']['wavyness']).to eq(natural_data[:wavyness])
         expect(event.get("@metadata")["pb_oneof"]["horse_type"]).to eq("unicorn")
         expect(event.get("@metadata")["pb_oneof"]["tail"]["hair_type"]).to eq("natural")
@@ -587,7 +587,7 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("tail")['braided']['braiding_style']).to eq(braid_data[:braiding_style])
         expect(event.get("tail")['natural']).to be_nil
         expect(event.get("tail")['short']).to be_nil
-        # todo expect the name of the one-of group to be nil
+        expect(event.get("tail")['hair_type']).to be_nil
         expect(event.get("@metadata")["pb_oneof"]).to be_nil
       end
     end # it
@@ -605,16 +605,14 @@ describe LogStash::Codecs::Protobuf do
 
     it "should do one-of meta info lookup for nested classes" do
       contacts = []
-      # TODO hans = {:name => "Hans Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "hans@test.com"}
-      hans = {:name => "Hans Test", :prefered_email => "hans@test.com"} # TODO remove
+      hans = {:name => "Hans Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "hans@test.com"}
       contacts << Company::Communication::Directories::Contact.new(hans)
       jane = {:name => "Jane Trial", :address => "Test street 13, 90210 Test hills", :prefered_phone => 1234567}
-      # TODO contacts << Company::Communication::Directories::Contact.new(jane)
+      contacts << Company::Communication::Directories::Contact.new(jane)
       kimmy = {:name => "Kimmy Experiment", :address => "Test street 14, 90210 Test hills", :prefered_fax => 666777888}
-      # TODO contacts << Company::Communication::Directories::Contact.new(kimmy)
+      contacts << Company::Communication::Directories::Contact.new(kimmy)
 
-      # TODO data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
-      data = {:contacts => contacts} # TODO remove
+      data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
       pb_obj = Company::Communication::Directories::PhoneDirectory.new(data)
       bin = Company::Communication::Directories::PhoneDirectory.encode(pb_obj)
       plugin_12.decode(bin) do |event|

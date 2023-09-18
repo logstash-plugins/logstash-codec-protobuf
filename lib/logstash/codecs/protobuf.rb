@@ -5,6 +5,7 @@ require 'google/protobuf' # for protobuf3
 require 'google/protobuf/struct_pb'
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers, for protobuf2
 
+
 # Monkey-patch the `Google::Protobuf::DescriptorPool` with a mutex for exclusive
 # access.
 #
@@ -213,17 +214,18 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
-      hashed = pb3_to_hash(decoded)
+      result = pb3_to_hash(decoded, 0) # TODO remove 2nd param
+      hashed = result[:data]
+      meta = result[:meta]
     else # version = 2
       decoded = @pb_builder.parse(data.to_s)
       hashed = decoded.to_hash
     end
     puts "HELLO EVENT #{hashed.inspect}" # TODO remove
+    puts "HELLO METAAA #{meta.inspect}" # TODO remove
     e = LogStash::Event.new(hashed)
-    puts "HELLO DONE #{e.inspect}" # TODO remove
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
-      meta = pb3_get_oneof_metainfo(decoded, @class_name)
-      puts "HELLO @metadata #{meta} " # TODO remove
+      puts "HELLO @metadata #{meta.inspect} " # TODO remove
       e.set("[@metadata][pb_oneof]", meta)
     end
     yield e if block_given?
@@ -251,9 +253,18 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def encode
 
 
+  def ws(i) # todo remove
+    "   " * i
+  end
+
+
   private
-  def pb3_to_hash(input)
-    puts "HELLO INPUT: #{input} " + input.class.name # TODO remove
+  def pb3_to_hash(input, i) # TODO remove 2nd param
+    meta = {}
+    if input.nil?
+      return {:data => nil, :meta => {}}
+    end
+    puts ws(i) + "HELLO INPUT: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
@@ -261,35 +272,64 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         :emit_defaults => true
       })
     when Google::Protobuf::MessageExts # it's a protobuf class
+
+      # TODO debug
+      input.to_h.each {|key, value|
+        puts ws(i) + "HELLO LEGACY: #{key} #{value}"  # TODO remove
+      }
+
       result = Hash.new
+      puts ws(i) + "HELLO CLASS:" + input.class.name # TODO remove
       input.clone().to_h.keys.each {|key|
         value = input.send(key)
-        result[key] = pb3_to_hash(value)
+        unless value.nil?
+          sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
+          r = sub_result[:data]
+          m = sub_result[:meta]
+          puts ws(i) + "HELLO RECURSION RESPONSE #{r} meta #{m}" # TODO
+          result[key.to_s] = r unless r.nil?
+          meta[key] = m unless m.empty?
+        end
       }
-      result = oneof_clean(result, input)
+      sub_result = oneof_clean(result, input, i) # TODO 2nd
+      result = sub_result[:data]
+      m = sub_result[:meta]
+      puts ws(i) + "HELLO RECEIVED #{sub_result} with m empty " + m.empty?().to_s
+      meta = meta.merge(m) unless m.empty?
     when ::Array
     when Google::Protobuf::RepeatedField
       result = []
       input.each {|value|
-        result << pb3_to_hash(value)
+        sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
+        r = sub_result[:data]
+        m = sub_result[:meta]
+        puts ws(i) + "HELLO ARRAY RECURSION #{r} meta #{m}" # TODO
+        result << r unless r.nil?
+        meta.merge(m) unless m.empty?
       }
     when ::Hash
+    # when Google::Protobuf::Map
       result = {}
       input.each {|key, value|
-        result[key] = pb3_to_hash(value)
+        sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
+        r = sub_result[:data]
+        m = sub_result[:meta]
+        puts ws(i) + "HELLO MAP RECURSION #{r} meta #{m}" # TODO
+        result[key.to_s] = r unless r.nil?
+        meta[key] = m unless m.empty?
       }
     when Symbol # is an Enum
       result = input.to_s.sub(':','')
     else # any other scalar
       result = input
     end
-    puts "HELLO RESULT #{result.inspect}" # TODO remove
-    result
+    puts ws(i) + "HELLO pb3_to_hash RESULT #{result.inspect} AND META #{meta}" # TODO remove
+    {:data => result, :meta => meta}
   end
 
 
   # For one-of options, remove the non-chosen options 
-  def oneof_clean(datahash, pb_obj)
+  def oneof_clean(datahash, pb_obj, i) # TODO 
     # If a field is part of a one-of then it must only be set if it's the selected option.
     # In codec versions <= 1.2.x this was not the case. The .to_h delivered default values 
     # for every one-of option regardless of which one had been chosen, instead of respecting the XOR relation between them.
@@ -301,12 +341,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
     # The we remove the other options which weren't set by the producer.
     lookup_classname = pb_obj.class.name.sub('::','.')
+    #puts "HELLO oneof_clean #{lookup_classname}" # TODO remove
     lookup = Google::Protobuf::DescriptorPool.generated_pool.lookup(lookup_classname)
+    meta = {}
     unless lookup.nil?
       pb_class = lookup.msgclass
       pb_class.descriptor.each_oneof { |field|
+        puts ws(i) + "HELLO ONE FIELD #{field.name}" # TODO remove
         # Find out which one-of option has been set
         chosen = pb_obj.send(field.name).to_s
+        puts ws(i) + "HELLO ONE CHOSEN #{chosen}" # TODO remove
         # Go through the options and remove the names of the non-chosen fields from the hash
         # Whacky solution, better ideas are welcome.
         field.each { | group_option |
@@ -315,53 +359,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
             datahash.delete(key)
           end
         }
+        meta[field.name.to_s] = chosen
+        
       }
     end # unless
-  datahash
-  end
-
-
-  # Extract the selected options for each one-of field of a given encoded object.
-  # Some consumers want to know which option of a one-of had been chosen.
-  # Example: a field foo of type one-of with options { int bar = 1; int bar = 2}
-  # for which the producer has set the value bar = 999
-  # would lead to foo = bar as the metainfo
-  def pb3_get_oneof_metainfo(pb_object, pb_class_name)
-    meta = {}
-    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class_name).msgclass
-    puts "HELLO META CLASS pb_class_name"
-    # Iterate over the one-of fields:
-    pb_class.descriptor.each_oneof { |field|
-      puts "HELLO ONEOFFIELD #{field.name}" # TODO remove
-      #puts "HELLO METHODS #{field.methods}" # TODO remove
-      #puts "HELLO VARIABLES #{field.instance_variables}" # TODO remove
-      # Find out which option has been set by the producer:
-      chosen = pb_object.send(field.name).to_s
-      # List the options. This will be needed later for detecting one-of fields while decoding.
-      #options = []
-      #field.each { | group_option |
-      #  options << group_option.name
-      #}
-      # meta[field.name] = {:set=>chosen.to_s, :options=>options}
-      # (deactivated b/c we don't need this right now)
-      meta[field.name] = chosen
-    }
-
-    puts "HELLO META FROM NESTED " # TODO rremoe
-    # Additionally recurse over any nested protobuf classes
-    pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
-      # Get the value for the field which is a pb class
-      pb_sub_object = pb_object.send(field.name)
-      if !pb_sub_object.nil? and !field.subtype.nil? and !field.subtype.msgclass.nil?
-          pb_sub_class = pb3_get_descriptorpool_name(field.subtype.msgclass)
-          # exclude structs because they cannot contain message classes or one-ofs
-          unless pb_sub_class == "google.protobuf.Struct"
-            meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
-          end
-      end
-    }
-    puts "HELLO FINAL META #{meta}" # TODO remove
-    meta
+    result = {:data => datahash, :meta => meta} # TODO maybe we change this back to two separate values for readibitliy of code? as in result, meta ? 
+    puts ws(i) + "HELLO /oneof_clean #{result}" # TODO
+    result
   end
 
 
