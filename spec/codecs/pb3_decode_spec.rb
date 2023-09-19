@@ -7,6 +7,7 @@ require 'google/protobuf' # for protobuf3
 
 # absolute path to the protobuf helpers directory
 pb_include_path = File.expand_path(".") + "/spec/helpers"
+pb_include_path.freeze
 
 # Include the protobuf definitions so that we can reference the classes
 # directly instead of looking them up in the pb decriptor pool
@@ -214,8 +215,6 @@ describe LogStash::Codecs::Protobuf do
       pbdns_message_object = PBDNSMessage.new(pbdns_message_data)
       bin = PBDNSMessage.encode(pbdns_message_object)
       plugin_4.decode(bin) do |event|
-        puts "HELLO RSPEC #{event.to_hash}"
-        
         ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId' ,'initialRequestId','deviceIdf'].each { |n|
           expect(event.get(n)).to eq(pbdns_message_data[n.to_sym] ) }
 
@@ -246,7 +245,10 @@ describe LogStash::Codecs::Protobuf do
   context "#pb3decoder_test5" do
 
     # Test case 5: decode test case for github issue 17
-    let(:plugin_5) { LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  }
+    let(:plugin_5) { 
+      LogStash::Codecs::Protobuf.new("class_name" => "com.foo.bar.IntegerTestMessage", 
+      "include_path" => [pb_include_path + '/pb3/integertest_pb.rb'], "protobuf_version" => 3)  
+    }
 
     before do
       plugin_5.register
@@ -282,7 +284,7 @@ describe LogStash::Codecs::Protobuf do
       allow(plugin).to receive(:execution_context).and_return(execution_context)
       allow(execution_context).to receive(:pipeline_id).and_return(pipeline_id)
 
-      # this is normally done on the input plugins we "mock" it here to avoid
+      # this is normally done on the input plugins. we "mock" it here to avoid
       # instantiating a dummy input plugin. See
       # https://github.com/ph/logstash/blob/37551a89b8137c1dc6fa4fbd992584c363a36065/logstash-core/lib/logstash/inputs/base.rb#L108
       plugin.execution_context = execution_context
@@ -604,32 +606,54 @@ describe LogStash::Codecs::Protobuf do
       plugin_12.decode(bin) do |event|
         expect(event.get("internal")).to eq(data[:internal])
         expect(event.get("external")).to be_nil
-        expect(event.get("@metadata")["scope"]).to eq('internal')
+        expect(event.get("@metadata")['pb_oneof']["scope"]).to eq('internal')
 
         expect(event.get("contacts")[0]["name"]).to eq(hans[:name])
         expect(event.get("contacts")[0]["address"]).to eq(hans[:address])
         expect(event.get("contacts")[0]["prefered_email"]).to eq(hans[:prefered_email])
         expect(event.get("contacts")[0]["prefered_fax"]).to be_nil
         expect(event.get("contacts")[0]["prefered_phone"]).to be_nil
-        expect(event.get("@metadata")["contacts"][0]['prefered_contact']).to eq('prefered_email')
+        expect(event.get("@metadata")['pb_oneof']["contacts"][0]['prefered_contact']).to eq('prefered_email')
     
         expect(event.get("contacts")[1]["name"]).to eq(jane[:name])
         expect(event.get("contacts")[1]["address"]).to eq(jane[:address])
         expect(event.get("contacts")[1]["prefered_phone"]).to eq(jane[:prefered_email])
         expect(event.get("contacts")[1]["prefered_fax"]).to be_nil
         expect(event.get("contacts")[1]["prefered_email"]).to be_nil
-        expect(event.get("@metadata")["contacts"][1]['prefered_contact']).to eq('prefered_phone')
+        expect(event.get("@metadata")['pb_oneof']["contacts"][1]['prefered_contact']).to eq('prefered_phone')
 
         expect(event.get("contacts")[2]["name"]).to eq(kimmy[:name])
         expect(event.get("contacts")[2]["address"]).to eq(kimmy[:address])
         expect(event.get("contacts")[2]["prefered_fax"]).to eq(kimmy[:prefered_email])
         expect(event.get("contacts")[2]["prefered_email"]).to be_nil
         expect(event.get("contacts")[2]["prefered_phone"]).to be_nil
-        expect(event.get("@metadata")["contacts"][2]['prefered_contact']).to eq('prefered_fax')
+        expect(event.get("@metadata")['pb_oneof']["contacts"][2]['prefered_contact']).to eq('prefered_fax')
     
       end
     end # it
-  end # context pb3decoder_test11
+  end # context pb3decoder_test12
+
+  ##################################################
+
+  context "#pb3decoder_test13" do
+    let(:plugin_13) { LogStash::Codecs::Protobuf.new(
+        "class_name" => "B.MessageB",
+        "class_file" => [ pb_include_path + '/pb3/messageB_pb.rb' ],
+        "protobuf_version" => 3, "pb3_set_oneof_metainfo" => true,
+        "protobuf_root_directory" => pb_include_path)
+      }
+    before do
+        plugin_13.register
+    end
+
+    it "should find the class name in the protobuf descriptor pool" do
+      data = {:name => "test"}
+      pb_obj = B::MessageB.new(data)
+      result = plugin_13.pb3_class_for_name(pb_obj)
+      expect {result.not_to be_nil}
+    end # it
+
+  end # context pb3decoder_test13
 
   ##################################################
 

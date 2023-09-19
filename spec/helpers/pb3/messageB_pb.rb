@@ -3,11 +3,10 @@
 
 require 'google/protobuf'
 
-require 'header/header_pb'
 Google::Protobuf::DescriptorPool.generated_pool.build do
   add_message "B.MessageB" do
     optional :name, :string, 1
-    optional :header, :message, 2, "Header"
+    optional :header, :string, 2
   end
 end
 

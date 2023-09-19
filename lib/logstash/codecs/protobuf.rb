@@ -190,10 +190,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       load_protobuf_definition(@class_file) if should_register and !@class_file.empty?
       # load from `include_path`
       include_path.each { |path| load_protobuf_definition(path) } if include_path.length > 0 and should_register
-
       if @protobuf_version == 3
         @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-
       else
         @pb_builder = pb2_create_instance(class_name)
       end
@@ -222,10 +220,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       hashed = decoded.to_hash
     end
     puts "HELLO DECODED #{ hashed}" # TODO remove
-    print_types(hashed) # TODO
-    puts "HELLO METAAA #{meta.inspect}" # TODO remove
     e = LogStash::Event.new(hashed)
-    puts "HELLO EVENT #{e.inspect}" # TODO remove
+    puts "HELLO EVENT #{e.to_hash}" # TODO remove
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
       puts "HELLO @metadata #{meta.inspect} " # TODO remove
       e.set("[@metadata][pb_oneof]", meta)
@@ -255,6 +251,30 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def encode
 
 
+  # Get the builder class for any given protobuf object from the descriptor pool
+  # Exposed for testing
+  # @param [Object] pb_obj The pb object instance to do the lookup for
+  # @return [Object] The pb builder class
+  def pb3_class_for_name(pb_obj)
+    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.name)
+    puts "HELLO oneof_clean #{pb_obj.class.name} => #{pb_class.inspect}" # TODO remove
+    if pb_class.nil?
+      key = pb_obj.class.name.gsub('::','.')
+      pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(key)
+      # TODO this is broken for class names like company.communication.directories.PhoneDirectory
+      puts "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
+    end
+
+    # TODO use this everywhere? or remove
+    if pb_class.nil?
+      descriptor = pb_obj.class.descriptor
+      pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(descriptor.name)
+      puts "HELLO hail mary #{descriptor.name} => #{pb_class.inspect}" # TODO remove  
+    end 
+
+    pb_class
+  end
+
   private
 
   # Helper function for debugging: print data types for fields of a hash
@@ -281,7 +301,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   
-
   # Converts the pb class to a hash, including its nested objects. 
   # @param [Object] input The pb class or any of its nested data structures
   # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
@@ -362,7 +381,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # @param [Object] pb_obj The protobuf class from which datahash was created
   # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
   # @return [Hash, Hash] The reduced data as a hash + meta information about the one-of choices.
-  def oneof_clean(datahash, pb_obj, i) # TODO 
+  def oneof_clean(datahash, pb_obj, i = 0) 
     # If a field is part of a one-of then it must only be set if it's the selected option.
     # In codec versions <= 1.2.x this was not the case. The .to_h delivered default values 
     # for every one-of option regardless of which one had been chosen, instead of respecting the XOR relation between them.
@@ -373,14 +392,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # and b) the name of the parent field. 
     # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
     # Then we remove the other options which weren't set by the producer.
-    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.name)
-    puts ws(i) + "HELLO oneof_clean #{pb_obj.class.name} => #{pb_class.inspect}" # TODO remove
-    if pb_class.nil?
-      key = pb_obj.class.name.gsub('::','.')
-      pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(key)
-      # TODO this is broken for class names like company.communication.directories.PhoneDirectory
-      puts ws(i) + "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
-    end
+    pb_class = pb3_class_for_name(pb_obj)
     meta = {}
     unless pb_class.nil?
       puts ws(i) + "HELLO LOOKUP #{pb_class.msgclass}" # TODO remove
@@ -405,8 +417,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     puts ws(i) + "HELLO /oneof_clean #{result}" # TODO
     result
   end
-
-
 
 
   def pb3_encode(event)
@@ -724,8 +734,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb3_metadata_analyis(filename)
-
-    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<name>.+),(\s*):(?<type>\w+),(\s*)(?<position>\d+)(, \"(?<enum_class>.*?)\")?/
     class_name = ""
     type = ""
@@ -748,11 +757,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       end # if
     end # readlines
     if class_name.nil?
-      @logger.warn("Error 4: class name not found in file  " + filename)
+      @logger.error("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
     end
   rescue Exception => e
-    @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+    @logger.error("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     raise e
   end
 

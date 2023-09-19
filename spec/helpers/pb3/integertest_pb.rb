@@ -10,11 +10,9 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
 end
 
 module Com
-  module Bla
-    module Bla
-      module Bla
-        TestMessage = Google::Protobuf::DescriptorPool.generated_pool.lookup("com.foo.bar.IntegerTestMessage").msgclass
-      end
+  module Foo
+    module Bar
+      IntegerTestMessage = Google::Protobuf::DescriptorPool.generated_pool.lookup("com.foo.bar.IntegerTestMessage").msgclass
     end
   end
 end
