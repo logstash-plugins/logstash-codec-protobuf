@@ -256,6 +256,32 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   private
+
+  # Helper function for debugging: print data types for fields of a hash
+  def print_types(hashy, i = 0)
+    hashy.each do |key, value|
+      puts ws(i) + "#{key} " + value.class.name
+      if value.is_a? ::Hash
+        print_types(value, i + 1)
+      end
+      if value.is_a? ::Array
+        value.each do |v|
+          puts ws(i + 1) + "" + v.class.name
+          if v.is_a? ::Hash
+            print_types(v, i + 2)
+          end
+        end
+      end
+    end
+  end
+
+  # Helper function for debugging: indent print statements based on recursion level
+  def ws(i)
+    "   " * i
+  end
+
+  
+
   # Converts the pb class to a hash, including its nested objects. 
   # @param [Object] input The pb class or any of its nested data structures
   # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
@@ -356,9 +382,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       puts ws(i) + "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
     end
     meta = {}
-    puts ws(i) + "HELLO YIELD" # TODO
     unless pb_class.nil?
-      puts ws(i) + "HELLO WTF" # TODO
       puts ws(i) + "HELLO LOOKUP #{pb_class.msgclass}" # TODO remove
       pb_class.msgclass.descriptor.each_oneof { |field|
         puts ws(i) + "HELLO ONE FIELD #{field.name}" # TODO remove
@@ -377,34 +401,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         meta[field.name.to_s] = chosen        
       }
     end # unless
-    puts ws(i) + "HELLO OMG"  # TODO
     result = {:data => datahash, :meta => meta} # TODO change this back to two separate values for readability of code
     puts ws(i) + "HELLO /oneof_clean #{result}" # TODO
     result
   end
 
-  # Helper function for debugging: print data types for fields of a hash
-  def print_types(hashy, i = 0)
-    hashy.each do |key, value|
-      puts ws(i) + "#{key} " + value.class.name
-      if value.is_a? ::Hash
-        print_types(value, i + 1)
-      end
-      if value.is_a? ::Array
-        value.each do |v|
-          puts ws(i + 1) + "" + v.class.name
-          if v.is_a? ::Hash
-            print_types(v, i + 2)
-          end
-        end
-      end
-    end
-  end
 
-  # Helper function for debugging: indent print statements based on recursion level
-  def ws(i)
-    "   " * i
-  end
 
 
   def pb3_encode(event)
@@ -502,7 +504,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
     mismatches = []
-
     if value.nil?
       is_mismatch = false
     else
