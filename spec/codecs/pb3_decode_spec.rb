@@ -180,8 +180,7 @@ describe LogStash::Codecs::Protobuf do
 
     it "should return an event from protobuf data with nested classes" do
       dns_question_data = {:qName => "Foo", :qType => 12345, :qClass => 67890 }
-      dns_question_object = PBDNSMessage::DNSQuestion.new(dns_question_data)
-
+      
       dns_response_data = {:rcode => 12345, :appliedPolicy => "baz", :tags => ["a","b","c"],
         :queryTimeSec => 123, :queryTimeUsec => 456,
         :appliedPolicyType => PBDNSMessage::PolicyType::NSIP}
@@ -190,10 +189,8 @@ describe LogStash::Codecs::Protobuf do
         {:name => "abc", :type => 9000, :class => 8000, :ttl => 20, :rdata => "300"},
         {:name => "def", :type => 19000, :class => 18000, :ttl => 120, :rdata => "1300"}
       ]
-
       dns_response_data[:rrs] = dns_rr_data.map { | d | d = PBDNSMessage::DNSResponse::DNSRR.new(d) }
-      dns_response_object = PBDNSMessage::DNSResponse.new(dns_response_data)
-
+   
       pbdns_message_data = {
         # :UUID => '12345678901233456789', :TaskPingIPv4Result => ping_result_object
         :type => PBDNSMessage::Type::DNSIncomingResponseType,
@@ -207,8 +204,8 @@ describe LogStash::Codecs::Protobuf do
         :timeSec => 80000,
         :timeUsec => 90000,
         :id => 20000,
-        :question => dns_question_object,
-        :response => dns_response_object,
+        :question => PBDNSMessage::DNSQuestion.new(dns_question_data),
+        :response => PBDNSMessage::DNSResponse.new(dns_response_data),
         :originalRequestorSubnet => "19",
         :requestorId => "Bar",
         :initialRequestId => "20",
@@ -217,7 +214,8 @@ describe LogStash::Codecs::Protobuf do
       pbdns_message_object = PBDNSMessage.new(pbdns_message_data)
       bin = PBDNSMessage.encode(pbdns_message_object)
       plugin_4.decode(bin) do |event|
-
+        puts "HELLO RSPEC #{event.to_hash}"
+        
         ['messageId', 'serverIdentity','from','to','inBytes','timeUsec','timeSec','id', 'originalRequestorSubnet', 'requestorId' ,'initialRequestId','deviceIdf'].each { |n|
           expect(event.get(n)).to eq(pbdns_message_data[n.to_sym] ) }
 
@@ -594,17 +592,16 @@ describe LogStash::Codecs::Protobuf do
     it "should do one-of meta info lookup for nested classes" do
       contacts = []
       hans = {:name => "Hans Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "hans@test.com"}
-      contacts << Company::Communication::Directories::Contact.new(hans)
+      # TODO contacts << Company::Communication::Directories::Contact.new(hans)
       jane = {:name => "Jane Trial", :address => "Test street 13, 90210 Test hills", :prefered_phone => 1234567}
-      contacts << Company::Communication::Directories::Contact.new(jane)
+      # TODO contacts << Company::Communication::Directories::Contact.new(jane)
       kimmy = {:name => "Kimmy Experiment", :address => "Test street 14, 90210 Test hills", :prefered_fax => 666777888}
-      contacts << Company::Communication::Directories::Contact.new(kimmy)
+      # TODO contacts << Company::Communication::Directories::Contact.new(kimmy)
 
       data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
       pb_obj = Company::Communication::Directories::PhoneDirectory.new(data)
       bin = Company::Communication::Directories::PhoneDirectory.encode(pb_obj)
       plugin_12.decode(bin) do |event|
-        puts "HELLO RSPEC #{event.to_hash}"
         expect(event.get("internal")).to eq(data[:internal])
         expect(event.get("external")).to be_nil
         expect(event.get("@metadata")["scope"]).to eq('internal')

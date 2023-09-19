@@ -214,7 +214,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
-      result = pb3_to_hash(decoded, 0) # TODO remove 2nd param
+      result = pb3_to_hash(decoded)
       hashed = result[:data]
       meta = result[:meta]
     else # version = 2
@@ -222,6 +222,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       hashed = decoded.to_hash
     end
     puts "HELLO DECODED #{ hashed}" # TODO remove
+    print_types(hashed) # TODO
     puts "HELLO METAAA #{meta.inspect}" # TODO remove
     e = LogStash::Event.new(hashed)
     puts "HELLO EVENT #{e.inspect}" # TODO remove
@@ -255,7 +256,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   private
-  def pb3_to_hash(input, i) # TODO remove 2nd param
+  # Converts the pb class to a hash, including its nested objects. 
+  # @param [Object] input The pb class or any of its nested data structures
+  # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
+  # @return [Hash, Hash] The converted data as a hash + meta information about the one-of choices.
+  def pb3_to_hash(input, i = 0)
     meta = {}
     if input.nil?
       return {:data => nil, :meta => {}}
@@ -271,7 +276,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       result = Hash.new
       puts ws(i) + "HELLO CLASS:" + input.class.name # TODO remove
       input.clone().to_h.keys.each {|key|
-        value = input.send(key)
+        # 'class' is a reserved word so we cannot send() it to the pb object. 
+        # It would give the pb definition class instead of the value of a field of such name. 
+        if key.to_s == "class"
+          value = input[key]
+          puts ws(i) + "I found a field of name 'class' => #{value}"
+        else
+          value = input.send(key)
+        end
         unless value.nil?
           sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
           r = sub_result[:data]
@@ -300,6 +312,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     when ::Hash
     when Google::Protobuf::Map
       result = {}
+      puts ws(i) + "HELLO MAP " # TODO
       input.each {|key, value|
         sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
         r = sub_result[:data]
@@ -318,7 +331,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
 
-  # For one-of options, remove the non-chosen options 
+  # For one-of options, remove the non-chosen options.
+  # @param [Hash] datahash The data hash including all options for each one-of field
+  # @param [Object] pb_obj The protobuf class from which datahash was created
+  # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
+  # @return [Hash, Hash] The reduced data as a hash + meta information about the one-of choices.
   def oneof_clean(datahash, pb_obj, i) # TODO 
     # If a field is part of a one-of then it must only be set if it's the selected option.
     # In codec versions <= 1.2.x this was not the case. The .to_h delivered default values 
@@ -329,14 +346,19 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # because the class of the chosen option will always be a scalar, 
     # and b) the name of the parent field. 
     # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
-    # The we remove the other options which weren't set by the producer.
-    lookup_classname = pb_obj.class.name.sub('::','.')
-    puts "HELLO oneof_clean #{lookup_classname} #{datahash}" # TODO remove
-    lookup = Google::Protobuf::DescriptorPool.generated_pool.lookup(lookup_classname)
+    # Then we remove the other options which weren't set by the producer.
+    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.name)
+    puts "HELLO oneof_clean #{pb_obj.class.name} => #{pb_class.inspect}" # TODO remove
+    if pb_class.nil?
+      key = pb_obj.class.name.gsub('::','.')
+      pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(key)
+      # TODO this is broken for class names like company.communication.directories.PhoneDirectory
+      puts "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
+    end
     meta = {}
-    unless lookup.nil?
-      pb_class = lookup.msgclass
-      pb_class.descriptor.each_oneof { |field|
+    unless pb_class.nil?
+      puts "HELLO LOOKUP #{pb_class.msgclass} #{pb_class.msgclass.descriptor.each_oneof.inspect}" # TODO remove
+      pb_class.msgclass.descriptor.each_oneof { |field|
         puts ws(i) + "HELLO ONE FIELD #{field.name}" # TODO remove
         # Find out which one-of option has been set
         chosen = pb_obj.send(field.name).to_s
@@ -350,8 +372,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
             puts ws(i) + "HELLO ONE DELETE #{key}" # TODO remove
           end
         }
-        meta[field.name.to_s] = chosen
-        
+        meta[field.name.to_s] = chosen        
       }
     end # unless
     result = {:data => datahash, :meta => meta} # TODO maybe we change this back to two separate values for readibitliy of code? as in result, meta ? 
@@ -359,20 +380,23 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     result
   end
 
-  # # Helper function for debugging: print data types for fields of a hash
-  # def print_types(hashy, i)
-  #   hashy.each do |key, value|
-  #     puts ws(i) + "#{key} " + value.class.name
-  #     if value.is_a? ::Hash
-  #       print_types(value, i + 1)
-  #     end
-  #     if value.is_a? ::Array
-  #       value.each do |v|
-  #         print_types(v, i + 1)
-  #       end
-  #     end
-  #   end
-  # end
+  # Helper function for debugging: print data types for fields of a hash
+  def print_types(hashy, i = 0)
+    hashy.each do |key, value|
+      puts ws(i) + "#{key} " + value.class.name
+      if value.is_a? ::Hash
+        print_types(value, i + 1)
+      end
+      if value.is_a? ::Array
+        value.each do |v|
+          puts ws(i + 1) + "" + v.class.name
+          if v.is_a? ::Hash
+            print_types(v, i + 2)
+          end
+        end
+      end
+    end
+  end
 
   # Helper function for debugging: indent print statements based on recursion level
   def ws(i)
