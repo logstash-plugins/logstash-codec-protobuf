@@ -13,5 +13,5 @@ Google::Protobuf::DescriptorPool.generated_pool.build do
   end
 end
 
-Event = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass
-Events = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass
+RepeatedEvent = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvent").msgclass
+RepeatedEvents = Google::Protobuf::DescriptorPool.generated_pool.lookup("RepeatedEvents").msgclass

@@ -221,9 +221,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       decoded = @pb_builder.parse(data.to_s)
       hashed = decoded.to_hash
     end
-    puts "HELLO EVENT #{hashed.inspect}" # TODO remove
+    puts "HELLO DECODED #{ hashed}" # TODO remove
     puts "HELLO METAAA #{meta.inspect}" # TODO remove
     e = LogStash::Event.new(hashed)
+    puts "HELLO EVENT #{e.inspect}" # TODO remove
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
       puts "HELLO @metadata #{meta.inspect} " # TODO remove
       e.set("[@metadata][pb_oneof]", meta)
@@ -253,11 +254,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def encode
 
 
-  def ws(i) # todo remove
-    "   " * i
-  end
-
-
   private
   def pb3_to_hash(input, i) # TODO remove 2nd param
     meta = {}
@@ -272,12 +268,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         :emit_defaults => true
       })
     when Google::Protobuf::MessageExts # it's a protobuf class
-
-      # TODO debug
-      input.to_h.each {|key, value|
-        puts ws(i) + "HELLO LEGACY: #{key} #{value}"  # TODO remove
-      }
-
       result = Hash.new
       puts ws(i) + "HELLO CLASS:" + input.class.name # TODO remove
       input.clone().to_h.keys.each {|key|
@@ -308,7 +298,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         meta.merge(m) unless m.empty?
       }
     when ::Hash
-    # when Google::Protobuf::Map
+    when Google::Protobuf::Map
       result = {}
       input.each {|key, value|
         sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
@@ -341,7 +331,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
     # The we remove the other options which weren't set by the producer.
     lookup_classname = pb_obj.class.name.sub('::','.')
-    #puts "HELLO oneof_clean #{lookup_classname}" # TODO remove
+    puts "HELLO oneof_clean #{lookup_classname} #{datahash}" # TODO remove
     lookup = Google::Protobuf::DescriptorPool.generated_pool.lookup(lookup_classname)
     meta = {}
     unless lookup.nil?
@@ -355,8 +345,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         # Whacky solution, better ideas are welcome.
         field.each { | group_option |
           if group_option.name != chosen
-            key = group_option.name.to_sym
+            key = group_option.name
             datahash.delete(key)
+            puts ws(i) + "HELLO ONE DELETE #{key}" # TODO remove
           end
         }
         meta[field.name.to_s] = chosen
@@ -366,6 +357,26 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     result = {:data => datahash, :meta => meta} # TODO maybe we change this back to two separate values for readibitliy of code? as in result, meta ? 
     puts ws(i) + "HELLO /oneof_clean #{result}" # TODO
     result
+  end
+
+  # # Helper function for debugging: print data types for fields of a hash
+  # def print_types(hashy, i)
+  #   hashy.each do |key, value|
+  #     puts ws(i) + "#{key} " + value.class.name
+  #     if value.is_a? ::Hash
+  #       print_types(value, i + 1)
+  #     end
+  #     if value.is_a? ::Array
+  #       value.each do |v|
+  #         print_types(v, i + 1)
+  #       end
+  #     end
+  #   end
+  # end
+
+  # Helper function for debugging: indent print statements based on recursion level
+  def ws(i)
+    "   " * i
   end
 
 
@@ -384,7 +395,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
     pb_obj = @pb_builder.new(datahash)
     @pb_builder.encode(pb_obj)
-
   rescue ArgumentError => e
     k = event.to_hash.keys.join(", ")
     @logger.warn("Protobuf encoding error 1: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. \
