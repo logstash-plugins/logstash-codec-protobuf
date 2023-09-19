@@ -256,23 +256,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # @param [Object] pb_obj The pb object instance to do the lookup for
   # @return [Object] The pb builder class
   def pb3_class_for_name(pb_obj)
-    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.name)
-    puts "HELLO oneof_clean #{pb_obj.class.name} => #{pb_class.inspect}" # TODO remove
-    if pb_class.nil?
-      key = pb_obj.class.name.gsub('::','.')
-      pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(key)
-      # TODO this is broken for class names like company.communication.directories.PhoneDirectory
-      puts "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
-    end
-
-    # TODO use this everywhere? or remove
-    if pb_class.nil?
-      descriptor = pb_obj.class.descriptor
-      pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(descriptor.name)
-      puts "HELLO hail mary #{descriptor.name} => #{pb_class.inspect}" # TODO remove  
-    end 
-
-    pb_class
+    Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.descriptor.name)
   end
 
   private
