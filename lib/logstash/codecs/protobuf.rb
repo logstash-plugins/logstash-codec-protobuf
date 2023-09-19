@@ -348,16 +348,18 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
     # Then we remove the other options which weren't set by the producer.
     pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.name)
-    puts "HELLO oneof_clean #{pb_obj.class.name} => #{pb_class.inspect}" # TODO remove
+    puts ws(i) + "HELLO oneof_clean #{pb_obj.class.name} => #{pb_class.inspect}" # TODO remove
     if pb_class.nil?
       key = pb_obj.class.name.gsub('::','.')
       pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(key)
       # TODO this is broken for class names like company.communication.directories.PhoneDirectory
-      puts "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
+      puts ws(i) + "HELLO alternative #{key} => #{pb_class.inspect}" # TODO remove    
     end
     meta = {}
+    puts ws(i) + "HELLO YIELD" # TODO
     unless pb_class.nil?
-      puts "HELLO LOOKUP #{pb_class.msgclass} #{pb_class.msgclass.descriptor.each_oneof.inspect}" # TODO remove
+      puts ws(i) + "HELLO WTF" # TODO
+      puts ws(i) + "HELLO LOOKUP #{pb_class.msgclass}" # TODO remove
       pb_class.msgclass.descriptor.each_oneof { |field|
         puts ws(i) + "HELLO ONE FIELD #{field.name}" # TODO remove
         # Find out which one-of option has been set
@@ -375,7 +377,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         meta[field.name.to_s] = chosen        
       }
     end # unless
-    result = {:data => datahash, :meta => meta} # TODO maybe we change this back to two separate values for readibitliy of code? as in result, meta ? 
+    puts ws(i) + "HELLO OMG"  # TODO
+    result = {:data => datahash, :meta => meta} # TODO change this back to two separate values for readability of code
     puts ws(i) + "HELLO /oneof_clean #{result}" # TODO
     result
   end
