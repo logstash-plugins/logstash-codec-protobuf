@@ -329,8 +329,11 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       sub_result = oneof_clean(result, input, i) # TODO 2nd
       result = sub_result[:data]
       m = sub_result[:meta]
-      puts ws(i) + "HELLO RECEIVED #{sub_result} with m empty " + m.empty?().to_s
+      puts ws(i) + "HELLO RECEIVED #{sub_result} with m empty " + m.empty?().to_s # TODO
+      puts ws(i) + "HELLO meta before merge #{m} " # TODO
       meta = meta.merge(m) unless m.empty?
+      puts ws(i) + "HELLO meta after merge #{m} " # TODO
+
     when ::Array
     when Google::Protobuf::RepeatedField
       result = []
@@ -340,7 +343,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         m = sub_result[:meta]
         puts ws(i) + "HELLO ARRAY RECURSION #{r} meta #{m}" # TODO
         result << r unless r.nil?
-        meta.merge(m) unless m.empty?
+        meta = meta.merge(m) unless m.empty?
       }
     when ::Hash
     when Google::Protobuf::Map
