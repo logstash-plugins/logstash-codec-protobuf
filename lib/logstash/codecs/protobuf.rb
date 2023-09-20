@@ -5,6 +5,7 @@ require 'google/protobuf' # for protobuf3
 require 'google/protobuf/struct_pb'
 require 'protocol_buffers' # https://github.com/codekitchen/ruby-protocol-buffers, for protobuf2
 
+
 # Monkey-patch the `Google::Protobuf::DescriptorPool` with a mutex for exclusive
 # access.
 #
@@ -189,10 +190,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       load_protobuf_definition(@class_file) if should_register and !@class_file.empty?
       # load from `include_path`
       include_path.each { |path| load_protobuf_definition(path) } if include_path.length > 0 and should_register
-
       if @protobuf_version == 3
         @pb_builder = Google::Protobuf::DescriptorPool.generated_pool.lookup(class_name).msgclass
-
       else
         @pb_builder = pb2_create_instance(class_name)
       end
@@ -213,28 +212,24 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   def decode(data)
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
-      if @pb3_set_oneof_metainfo
-        meta = pb3_get_oneof_metainfo(decoded, @class_name)
-      end
-      h = pb3_deep_to_hash(decoded)
-    else
+      hashed, meta = pb3_to_hash(decoded)
+    else # version = 2
       decoded = @pb_builder.parse(data.to_s)
-      h = decoded.to_hash
+      hashed = decoded.to_hash
     end
-    e = LogStash::Event.new(h)
+    e = LogStash::Event.new(hashed)
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
       e.set("[@metadata][pb_oneof]", meta)
     end
     yield e if block_given?
   rescue => ex
     @logger.warn("Couldn't decode protobuf: #{ex.inspect}")
-    if stop_on_error
+    if @stop_on_error
       raise ex
     else # keep original message so that the user can debug it.
       yield LogStash::Event.new(
         "message" => data, "tags" => ["_protobufdecodefailure"],
-        "decoder_exception" => "#{ex.inspect}"
-      )
+        "decoder_exception" => "#{ex.inspect}")
     end
   end # def decode
 
@@ -251,8 +246,46 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end # def encode
 
 
+  # Get the builder class for any given protobuf object from the descriptor pool
+  # Exposed for testing
+  # @param [Object] pb_obj The pb object instance to do the lookup for
+  # @return [Object] The pb builder class
+  def pb3_class_for_name(pb_obj)
+    Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_obj.class.descriptor.name)
+  end
+
   private
-  def pb3_deep_to_hash(input)
+
+  # Helper function for debugging: print data types for fields of a hash
+  def print_types(hashy, i = 0)
+    hashy.each do |key, value|
+      puts ws(i) + "#{key} " + value.class.name
+      if value.is_a? ::Hash
+        print_types(value, i + 1)
+      end
+      if value.is_a? ::Array
+        value.each do |v|
+          puts ws(i + 1) + "" + v.class.name
+          if v.is_a? ::Hash
+            print_types(v, i + 2)
+          end
+        end
+      end
+    end
+  end
+
+  # Helper function for debugging: indent print statements based on recursion level
+  def ws(i)
+    "   " * i
+  end
+
+  
+  # Converts the pb class to a hash, including its nested objects. 
+  # @param [Object] input The pb class or any of its nested data structures
+  # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
+  # @return [Hash, Hash] The converted data as a hash + meta information about the one-of choices.
+  def pb3_to_hash(input, i = 0)
+    meta = {}
     case input
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
@@ -261,34 +294,87 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       })
     when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
-      # when we've called to_h here it is already a nested hash, for the
-      # structs we bubble down the original value instead.
-      input.to_h.each {|key, value|
-        value = input[key] if input[key].is_a? Google::Protobuf::Struct
-        result[key] = pb3_deep_to_hash(value) # the key is required for the class lookup of enums.
+      input.clone().to_h.keys.each {|key|
+        # 'class' is a reserved word so we cannot send() it to the pb object. 
+        # It would give the pb definition class instead of the value of a field of such name. 
+        if key.to_s == "class"
+          value = input[key]
+        else
+          value = input.send(key)
+        end
+        unless value.nil?
+          r, m = pb3_to_hash(value, 1 + i)
+          result[key.to_s] = r unless r.nil?
+          meta[key] = m unless m.empty?
+        end
       }
+      result, m = oneof_clean(result, input, i)
+      meta = meta.merge(m) unless m.empty?
     when ::Array
+    when Google::Protobuf::RepeatedField
       result = []
+      meta = []
       input.each {|value|
-          result << pb3_deep_to_hash(value)
+        r, m = pb3_to_hash(value, 1 + i)
+        result << r unless r.nil?
+        meta << m unless r.nil?
       }
     when ::Hash
+    when Google::Protobuf::Map
       result = {}
       input.each {|key, value|
-          result[key] = pb3_deep_to_hash(value)
+        r, m = pb3_to_hash(value, 1 + i)
+        result[key.to_s] = r unless r.nil?
+        meta[key] = m unless m.empty?
       }
     when Symbol # is an Enum
       result = input.to_s.sub(':','')
-    else
+    else # any other scalar
       result = input
     end
-    result
+    return result, meta
   end
 
+
+  # For one-of options, remove the non-chosen options.
+  # @param [Hash] datahash The data hash including all options for each one-of field
+  # @param [Object] pb_obj The protobuf class from which datahash was created
+  # @param [Numeric] i Level of recursion, needed only for whitespace indentation in debug output
+  # @return [Hash, Hash] The reduced data as a hash + meta information about the one-of choices.
+  def oneof_clean(datahash, pb_obj, i = 0) 
+    # If a field is part of a one-of then it must only be set if it's the selected option.
+    # In codec versions <= 1.2.x this was not the case. The .to_h delivered default values 
+    # for every one-of option regardless of which one had been chosen, instead of respecting the XOR relation between them.
+    # The selected option's field name can be queried from input[parent_field] 
+    # where parent_field is the name of the one-of field outside the option list. 
+    # It's unclear though how to identify a) if a field is part of a one-of struct
+    # because the class of the chosen option will always be a scalar, 
+    # and b) the name of the parent field. 
+    # As a workaround we look up the names of the 'parent fields' for this class and then the chosen options for those.
+    # Then we remove the other options which weren't set by the producer.
+    pb_class = pb3_class_for_name(pb_obj)
+    meta = {}
+    unless pb_class.nil?
+      pb_class.msgclass.descriptor.each_oneof { |field|
+        # Find out which one-of option has been set
+        chosen = pb_obj.send(field.name).to_s
+        # Go through the options and remove the names of the non-chosen fields from the hash
+        # Whacky solution, better ideas are welcome.
+        field.each { | group_option |
+          if group_option.name != chosen
+            key = group_option.name
+            datahash.delete(key)
+          end
+        }
+        meta[field.name.to_s] = chosen        
+      }
+    end # unless
+    return datahash, meta
+  end
+
+
   def pb3_encode(event)
-
     datahash = event.to_hash
-
     is_recursive_call = !event.get('tags').nil? and event.get('tags').include? @pb3_typeconversion_tag
     if is_recursive_call
       datahash = pb3_remove_typeconversion_tag(datahash)
@@ -302,7 +388,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
     pb_obj = @pb_builder.new(datahash)
     @pb_builder.encode(pb_obj)
-
   rescue ArgumentError => e
     k = event.to_hash.keys.join(", ")
     @logger.warn("Protobuf encoding error 1: Argument error (#{e.inspect}). Reason: probably mismatching protobuf definition. \
@@ -317,15 +402,12 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
 
-
-
   def pb3_handle_type_errors(event, e, is_recursive_call, datahash)
     begin
       if is_recursive_call
         @logger.warn("Protobuf encoding error 2.1: Type error (#{e.inspect}). Some types could not be converted. The event has been discarded. Type mismatches: #{mismatches}.")
       else
         if @pb3_encoder_autoconvert_types
-
           msg = "Protobuf encoding error 2.2: Type error (#{e.inspect}). Will try to convert the data types. Original data: #{datahash}"
           @logger.warn(msg)
           mismatches = pb3_get_type_mismatches(datahash, "", @class_name)
@@ -371,12 +453,10 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
   def pb3_get_expected_type(key, pb_class)
     pb_descriptor = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class)
-
     if !pb_descriptor.nil?
       pb_builder = pb_descriptor.msgclass
       pb_obj = pb_builder.new({})
       v = pb_obj.send(key)
-
       if !v.nil?
         v.class
       else
@@ -385,9 +465,9 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
   end
 
+
   def pb3_compare_datatypes(value, key, key_prefix, pb_class, expected_type)
     mismatches = []
-
     if value.nil?
       is_mismatch = false
     else
@@ -485,6 +565,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
   end
 
+
   # Due to recursion on nested fields in the event object this method might be given an event (1st call) or a hash (2nd .. nth call)
   # First call will be the event object, child objects will be hashes.
   def pb3_convert_mismatched_types(struct, mismatches)
@@ -531,6 +612,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     struct
   end
 
+
   def pb3_prepare_for_encoding(datahash)
     # 0) Remove empty fields.
     datahash = datahash.select { |key, value| !value.nil? }
@@ -545,30 +627,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     end
 
     datahash
-  end
-
-  def pb3_get_oneof_metainfo(pb_object, pb_class_name)
-    meta = {}
-    pb_class = Google::Protobuf::DescriptorPool.generated_pool.lookup(pb_class_name).msgclass
-
-    pb_class.descriptor.each_oneof { |field|
-      field.each { | group_option |
-        if !pb_object.send(group_option.name).nil?
-            meta[field.name] = group_option.name
-        end
-      }
-    }
-
-    pb_class.descriptor.select{ |field| field.type == :message }.each { | field |
-      # recurse over nested protobuf classes
-      pb_sub_object = pb_object.send(field.name)
-      if !pb_sub_object.nil? and !field.subtype.nil?
-          pb_sub_class = pb3_get_descriptorpool_name(field.subtype.msgclass)
-          meta[field.name] = pb3_get_oneof_metainfo(pb_sub_object, pb_sub_class)
-      end
-    }
-
-    meta
   end
 
 
@@ -607,7 +665,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
                 original_value
               else
                 proto_obj = pb2_create_instance(c)
-                proto_obj.new(pb2_prepare_for_encoding(original_value, c)) # this line is reached in the colourtest for an enum. Enums should not be instantiated. Should enums even be in the messageclasses? I dont think so! TODO bug
+                proto_obj.new(pb2_prepare_for_encoding(original_value, c)) # this line is reached in the colourtest for an enum. 
+                # Enums should not be instantiated. Should enums even be in the messageclasses? I dont think so!
               end # if is array
           end # if datahash_include
         end # do
@@ -629,8 +688,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
 
 
   def pb3_metadata_analyis(filename)
-
-    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/ # TODO optimize both regexes for speed (negative lookahead)
+    regex_class_name = /\s*add_message "(?<name>.+?)" do\s+/
     regex_pbdefs = /\s*(optional|repeated)(\s*):(?<name>.+),(\s*):(?<type>\w+),(\s*)(?<position>\d+)(, \"(?<enum_class>.*?)\")?/
     class_name = ""
     type = ""
@@ -653,14 +711,13 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       end # if
     end # readlines
     if class_name.nil?
-      @logger.warn("Error 4: class name not found in file  " + filename)
+      @logger.error("Error 4: class name not found in file  " + filename)
       raise ArgumentError, "Invalid protobuf file: " + filename
     end
   rescue Exception => e
-    @logger.warn("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
+    @logger.error("Error 3: unable to read pb definition from file  " + filename+ ". Reason: #{e.inspect}. Last settings were: class #{class_name} field #{field_name} type #{type}. Backtrace: " + e.backtrace.inspect.to_s)
     raise e
   end
-
 
 
   def pb2_metadata_analyis(filename)
