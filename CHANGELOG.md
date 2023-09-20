@@ -1,6 +1,7 @@
 ## 1.3.0
   - Enforce XOR between options for one-of
   - fix incorrect detection of metadata for one-of fields
+  - Update protobuf library to 3.23.4
 
 ## 1.2.10
   - Update gem platform to be "java" instead of "jruby" [#67](https://github.com/logstash-plugins/logstash-codec-protobuf/pull/67)
