@@ -295,9 +295,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # @return [Hash, Hash] The converted data as a hash + meta information about the one-of choices.
   def pb3_to_hash(input, i = 0)
     meta = {}
-    if input.nil?
-      return {:data => nil, :meta => {}}
-    end
     puts ws(i) + "HELLO INPUT: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
@@ -326,14 +323,8 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           meta[key] = m unless m.empty?
         end
       }
-      sub_result = oneof_clean(result, input, i) # TODO 2nd
-      result = sub_result[:data]
-      m = sub_result[:meta]
-      puts ws(i) + "HELLO RECEIVED #{sub_result} with m empty " + m.empty?().to_s # TODO
-      puts ws(i) + "HELLO meta before merge #{m} " # TODO
+      result, m = oneof_clean(result, input, i)
       meta = meta.merge(m) unless m.empty?
-      puts ws(i) + "HELLO meta after merge #{m} " # TODO
-
     when ::Array
     when Google::Protobuf::RepeatedField
       result = []
@@ -363,7 +354,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     else # any other scalar
       result = input
     end
-    puts ws(i) + "HELLO pb3_to_hash RESULT #{result.inspect} AND META #{meta}" # TODO remove
     {:data => result, :meta => meta}
   end
 
@@ -405,9 +395,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
         meta[field.name.to_s] = chosen        
       }
     end # unless
-    result = {:data => datahash, :meta => meta} # TODO change this back to two separate values for readability of code
-    puts ws(i) + "HELLO /oneof_clean #{result}" # TODO
-    result
+    return datahash, meta
   end
 
 
