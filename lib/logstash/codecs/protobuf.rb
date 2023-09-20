@@ -213,9 +213,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     puts "HELLO WORLD #{data}" # TODO remove
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
-      result = pb3_to_hash(decoded)
-      hashed = result[:data]
-      meta = result[:meta]
+      hashed, meta = pb3_to_hash(decoded)
     else # version = 2
       decoded = @pb_builder.parse(data.to_s)
       hashed = decoded.to_hash
@@ -315,9 +313,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
           value = input.send(key)
         end
         unless value.nil?
-          sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
-          r = sub_result[:data]
-          m = sub_result[:meta]
+          r, m = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
           puts ws(i) + "HELLO RECURSION RESPONSE #{r} meta #{m}" # TODO
           result[key.to_s] = r unless r.nil?
           meta[key] = m unless m.empty?
@@ -330,9 +326,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       result = []
       meta = []
       input.each {|value|
-        sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
-        r = sub_result[:data]
-        m = sub_result[:meta]
+        r, m = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
         puts ws(i) + "HELLO ARRAY RECURSION #{r} meta #{m}" # TODO
         result << r unless r.nil?
         meta << m unless r.nil?
@@ -342,9 +336,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       result = {}
       puts ws(i) + "HELLO MAP " # TODO
       input.each {|key, value|
-        sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
-        r = sub_result[:data]
-        m = sub_result[:meta]
+        r, m = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
         puts ws(i) + "HELLO MAP RECURSION #{r} meta #{m}" # TODO
         result[key.to_s] = r unless r.nil?
         meta[key] = m unless m.empty?
@@ -354,7 +346,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     else # any other scalar
       result = input
     end
-    {:data => result, :meta => meta}
+    return result, meta
   end
 
 
