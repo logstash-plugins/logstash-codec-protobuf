@@ -337,13 +337,14 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     when ::Array
     when Google::Protobuf::RepeatedField
       result = []
+      meta = []
       input.each {|value|
         sub_result = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
         r = sub_result[:data]
         m = sub_result[:meta]
         puts ws(i) + "HELLO ARRAY RECURSION #{r} meta #{m}" # TODO
         result << r unless r.nil?
-        meta = meta.merge(m) unless m.empty?
+        meta << m unless r.nil?
       }
     when ::Hash
     when Google::Protobuf::Map

@@ -596,9 +596,9 @@ describe LogStash::Codecs::Protobuf do
       hans = {:name => "Horst Test", :address => "Test street 12, 90210 Test hills", :prefered_email => "horst@test.com"}
       contacts << Company::Communication::Directories::Contact.new(hans)
       jane = {:name => "Jane Trial", :address => "Test street 13, 90210 Test hills", :prefered_phone => 1234567}
-      # TODO contacts << Company::Communication::Directories::Contact.new(jane)
+      contacts << Company::Communication::Directories::Contact.new(jane)
       kimmy = {:name => "Kimmy Experiment", :address => "Test street 14, 90210 Test hills", :prefered_fax => 666777888}
-      # TODO contacts << Company::Communication::Directories::Contact.new(kimmy)
+      contacts << Company::Communication::Directories::Contact.new(kimmy)
 
       data = {:last_updated_timestamp=>1900000000, :internal => true, :contacts => contacts}
       pb_obj = Company::Communication::Directories::PhoneDirectory.new(data)
@@ -617,23 +617,22 @@ describe LogStash::Codecs::Protobuf do
         expect(event.get("contacts")[0]["prefered_phone"]).to be_nil
         expect(event.get("@metadata")['pb_oneof']["contacts"]).not_to be_nil
         expect(event.get("@metadata")['pb_oneof']["contacts"]).to be_a(Array)
-        # TODO activate
-        # expect(event.get("@metadata")['pb_oneof']["contacts"]).to have(3).items
-        # expect(event.get("@metadata")['pb_oneof']["contacts"][0]['prefered_contact']).to eq('prefered_email')
-    
-        # expect(event.get("contacts")[1]["name"]).to eq(jane[:name])
-        # expect(event.get("contacts")[1]["address"]).to eq(jane[:address])
-        # expect(event.get("contacts")[1]["prefered_phone"]).to eq(jane[:prefered_email])
-        # expect(event.get("contacts")[1]["prefered_fax"]).to be_nil
-        # expect(event.get("contacts")[1]["prefered_email"]).to be_nil
-        # expect(event.get("@metadata")['pb_oneof']["contacts"][1]['prefered_contact']).to eq('prefered_phone')
+        expect(event.get("@metadata")['pb_oneof']["contacts"].length()).to eq(3)
+        expect(event.get("@metadata")['pb_oneof']["contacts"][0]['prefered_contact']).to eq('prefered_email')
+        
+        expect(event.get("contacts")[1]["name"]).to eq(jane[:name])
+        expect(event.get("contacts")[1]["address"]).to eq(jane[:address])
+        expect(event.get("contacts")[1]["prefered_phone"]).to eq(jane[:prefered_phone])
+        expect(event.get("contacts")[1]["prefered_fax"]).to be_nil
+        expect(event.get("contacts")[1]["prefered_email"]).to be_nil
+        expect(event.get("@metadata")['pb_oneof']["contacts"][1]['prefered_contact']).to eq('prefered_phone')
 
-        # expect(event.get("contacts")[2]["name"]).to eq(kimmy[:name])
-        # expect(event.get("contacts")[2]["address"]).to eq(kimmy[:address])
-        # expect(event.get("contacts")[2]["prefered_fax"]).to eq(kimmy[:prefered_email])
-        # expect(event.get("contacts")[2]["prefered_email"]).to be_nil
-        # expect(event.get("contacts")[2]["prefered_phone"]).to be_nil
-        # expect(event.get("@metadata")['pb_oneof']["contacts"][2]['prefered_contact']).to eq('prefered_fax')
+        expect(event.get("contacts")[2]["name"]).to eq(kimmy[:name])
+        expect(event.get("contacts")[2]["address"]).to eq(kimmy[:address])
+        expect(event.get("contacts")[2]["prefered_fax"]).to eq(kimmy[:prefered_fax])
+        expect(event.get("contacts")[2]["prefered_email"]).to be_nil
+        expect(event.get("contacts")[2]["prefered_phone"]).to be_nil
+        expect(event.get("@metadata")['pb_oneof']["contacts"][2]['prefered_contact']).to eq('prefered_fax')
     
       end
     end # it
