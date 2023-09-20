@@ -210,7 +210,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def decode(data)
-    puts "HELLO WORLD #{data}" # TODO remove
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
       hashed, meta = pb3_to_hash(decoded)
@@ -218,22 +217,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       decoded = @pb_builder.parse(data.to_s)
       hashed = decoded.to_hash
     end
-    puts "HELLO DECODED #{ hashed}" # TODO remove
     e = LogStash::Event.new(hashed)
-    puts "HELLO EVENT #{e.to_hash}" # TODO remove
     if @protobuf_version == 3 and @pb3_set_oneof_metainfo
-      puts "HELLO @metadata #{meta.inspect} " # TODO remove
       e.set("[@metadata][pb_oneof]", meta)
     end
-    puts "HELLO YIELD " # TODO
-    yield e if block_given? # TODO here be draggonssss
-    puts "BYE YIELD" # TODO
+    yield e if block_given?
   rescue => ex
     @logger.warn("Couldn't decode protobuf: #{ex.inspect}")
     if @stop_on_error
       raise ex
     else # keep original message so that the user can debug it.
-      puts "HELLO ERROR #{ex.inspect}" + ex.backtrace.take(10).join("\n") # TODO
       yield LogStash::Event.new(
         "message" => data, "tags" => ["_protobufdecodefailure"],
         "decoder_exception" => "#{ex.inspect}")
@@ -293,7 +286,6 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   # @return [Hash, Hash] The converted data as a hash + meta information about the one-of choices.
   def pb3_to_hash(input, i = 0)
     meta = {}
-    puts ws(i) + "HELLO INPUT: #{input} " + input.class.name # TODO remove
     case input
     when Google::Protobuf::Struct
       result = JSON.parse input.to_json({
@@ -302,19 +294,16 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       })
     when Google::Protobuf::MessageExts # it's a protobuf class
       result = Hash.new
-      puts ws(i) + "HELLO CLASS:" + input.class.name # TODO remove
       input.clone().to_h.keys.each {|key|
         # 'class' is a reserved word so we cannot send() it to the pb object. 
         # It would give the pb definition class instead of the value of a field of such name. 
         if key.to_s == "class"
           value = input[key]
-          puts ws(i) + "I found a field of name 'class' => #{value}"
         else
           value = input.send(key)
         end
         unless value.nil?
-          r, m = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
-          puts ws(i) + "HELLO RECURSION RESPONSE #{r} meta #{m}" # TODO
+          r, m = pb3_to_hash(value, 1 + i)
           result[key.to_s] = r unless r.nil?
           meta[key] = m unless m.empty?
         end
@@ -326,18 +315,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       result = []
       meta = []
       input.each {|value|
-        r, m = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
-        puts ws(i) + "HELLO ARRAY RECURSION #{r} meta #{m}" # TODO
+        r, m = pb3_to_hash(value, 1 + i)
         result << r unless r.nil?
         meta << m unless r.nil?
       }
     when ::Hash
     when Google::Protobuf::Map
       result = {}
-      puts ws(i) + "HELLO MAP " # TODO
       input.each {|key, value|
-        r, m = pb3_to_hash(value, 1 + i) # TODO remove 2nd param
-        puts ws(i) + "HELLO MAP RECURSION #{r} meta #{m}" # TODO
+        r, m = pb3_to_hash(value, 1 + i)
         result[key.to_s] = r unless r.nil?
         meta[key] = m unless m.empty?
       }
@@ -369,19 +355,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
     pb_class = pb3_class_for_name(pb_obj)
     meta = {}
     unless pb_class.nil?
-      puts ws(i) + "HELLO LOOKUP #{pb_class.msgclass}" # TODO remove
       pb_class.msgclass.descriptor.each_oneof { |field|
-        puts ws(i) + "HELLO ONE FIELD #{field.name}" # TODO remove
         # Find out which one-of option has been set
         chosen = pb_obj.send(field.name).to_s
-        puts ws(i) + "HELLO ONE CHOSEN #{chosen}" # TODO remove
         # Go through the options and remove the names of the non-chosen fields from the hash
         # Whacky solution, better ideas are welcome.
         field.each { | group_option |
           if group_option.name != chosen
             key = group_option.name
             datahash.delete(key)
-            puts ws(i) + "HELLO ONE DELETE #{key}" # TODO remove
           end
         }
         meta[field.name.to_s] = chosen        
