@@ -210,6 +210,7 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
   end
 
   def decode(data)
+    puts "HELLO WORLD #{data}" # TODO remove
     if @protobuf_version == 3
       decoded = @pb_builder.decode(data.to_s)
       result = pb3_to_hash(decoded)
@@ -226,12 +227,15 @@ class LogStash::Codecs::Protobuf < LogStash::Codecs::Base
       puts "HELLO @metadata #{meta.inspect} " # TODO remove
       e.set("[@metadata][pb_oneof]", meta)
     end
-    yield e if block_given?
+    puts "HELLO YIELD " # TODO
+    yield e if block_given? # TODO here be draggonssss
+    puts "BYE YIELD" # TODO
   rescue => ex
     @logger.warn("Couldn't decode protobuf: #{ex.inspect}")
     if @stop_on_error
       raise ex
     else # keep original message so that the user can debug it.
+      puts "HELLO ERROR #{ex.inspect}" + ex.backtrace.take(10).join("\n") # TODO
       yield LogStash::Event.new(
         "message" => data, "tags" => ["_protobufdecodefailure"],
         "decoder_exception" => "#{ex.inspect}")
