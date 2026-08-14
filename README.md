@@ -1,5 +1,7 @@
 # Logstash protobuf codec
 
+[![Unit Tests](https://github.com/logstash-plugins/logstash-codec-protobuf/actions/workflows/unit-tests.yml/badge.svg?branch=main)](https://github.com/logstash-plugins/logstash-codec-protobuf/actions/workflows/unit-tests.yml)
+
 This is a codec plugin for [Logstash](https://github.com/elastic/logstash) to parse protobuf messages.
 
 # Prerequisites and Installation
